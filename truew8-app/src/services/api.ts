@@ -26,6 +26,10 @@ apiClient.interceptors.request.use((config) => {
   const isAuthEndpoint = requestUrl.startsWith("/auth/");
   const token = authTokenGetter();
 
+  if (config.data instanceof FormData && config.headers) {
+    delete config.headers["Content-Type"];
+  }
+
   if (token && !isAuthEndpoint) {
     config.headers.Authorization = `Bearer ${token}`;
   }

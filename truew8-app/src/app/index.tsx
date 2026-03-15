@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
 
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { t } from '@/src/i18n';
+import { extractHoldingsFromPrint } from '@/src/services/ocr';
 import { calculateRebalance, RebalanceOrder } from '@/src/services/rebalance';
 import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
@@ -29,6 +32,7 @@ export default function RebalanceScreen() {
   ]);
   const [orders, setOrders] = useState<RebalanceOrder[]>([]);
   const [error, setError] = useState('');
+  const [isImportingPrint, setIsImportingPrint] = useState(false);
 
   const mappedOrders = useMemo(() => {
     return orders.map((order) => ({
@@ -56,6 +60,78 @@ export default function RebalanceScreen() {
 
   const addTarget = () => {
     setTargets((previous) => [...previous, { ticker: '', percentage: '', price: '' }]);
+  };
+
+  const formatQuantity = (quantity: number): string => {
+    return Number.isInteger(quantity) ? String(quantity) : quantity.toString();
+  };
+
+  const importFromPrint = async () => {
+    if (isImportingPrint) {
+      return;
+    }
+
+    setError('');
+    setIsImportingPrint(true);
+
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError(t('rebalance.importError'));
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        quality: 1,
+      });
+
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const extracted = await extractHoldingsFromPrint({
+        uri: asset.uri,
+        mimeType: asset.mimeType,
+        fileName: asset.fileName,
+      });
+
+      if (extracted.length === 0) {
+        setError(t('rebalance.importNoData'));
+        return;
+      }
+
+      const knownPrices = new Map<string, string>();
+      for (const holding of holdings) {
+        knownPrices.set(holding.ticker.trim().toUpperCase(), holding.price);
+      }
+      for (const target of targets) {
+        if (!knownPrices.has(target.ticker.trim().toUpperCase())) {
+          knownPrices.set(target.ticker.trim().toUpperCase(), target.price);
+        }
+      }
+
+      setHoldings(
+        extracted.map((holding) => {
+          const ticker = holding.ticker.trim().toUpperCase();
+          return {
+            ticker,
+            quantity: formatQuantity(holding.quantity),
+            price: knownPrices.get(ticker) ?? '',
+          };
+        }),
+      );
+    } catch (requestError) {
+      if (axios.isAxiosError(requestError) && requestError.response?.status === 403) {
+        setError(t('rebalance.importLimitReached'));
+      } else {
+        setError(t('rebalance.importError'));
+      }
+    } finally {
+      setIsImportingPrint(false);
+    }
   };
 
   const submit = async () => {
@@ -142,6 +218,11 @@ export default function RebalanceScreen() {
         </View>
       ))}
       <DSButton title={t('rebalance.addHolding')} onPress={addHolding} testID="button-add-holding" />
+      <DSButton
+        title={isImportingPrint ? t('rebalance.importingPrint') : t('rebalance.importFromPrint')}
+        onPress={importFromPrint}
+        testID="button-import-print"
+      />
 
       <Text style={styles.sectionTitle}>{t('rebalance.targetTitle')}</Text>
       {targets.map((target, index) => (
