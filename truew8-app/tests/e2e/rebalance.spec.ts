@@ -1,67 +1,73 @@
 import { expect, test } from '@playwright/test';
 
-test('registers and logs in a new user then shows email on dashboard', async ({ page }) => {
-  const email = 'new.user@truew8.com';
+test.describe.configure({ mode: 'serial' });
 
-  await page.route('**/auth/register', async (route) => {
-    await route.fulfill({
-      status: 201,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        token: 'register-token',
-        email,
-      }),
-    });
-  });
+const sessionKey = 'truew8.session';
 
-  await page.route('**/auth/login', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        token: 'login-token',
-        email,
-      }),
-    });
-  });
+const authenticate = async (page: import('@playwright/test').Page, email: string) => {
+  await page.addInitScript(
+    ({ key, sessionEmail }) => {
+      window.localStorage.setItem(
+        key,
+        JSON.stringify({
+          token: 'mock-token',
+          email: sessionEmail,
+        }),
+      );
+    },
+    { key: sessionKey, sessionEmail: email },
+  );
+};
 
-  await page.goto('/register');
+test('shows dashboard with cofre state and allows strategy selection', async ({ page }) => {
+  const email = 'ux.dashboard@truew8.com';
+  await authenticate(page, email);
 
-  await page.locator('input').nth(0).fill(email);
-  await page.locator('input').nth(1).fill('StrongPass123!');
-  await page.getByTestId('register-submit-button').click();
+  await page.goto('/');
 
-  await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
+  await expect(page.getByTestId('dashboard-user-email').first()).toContainText(email);
+  await expect(page.getByTestId('dashboard-total-patrimony')).toBeVisible();
 
-  await page.getByTestId('button-logout').click();
+  await page.getByTestId('lock-toggle-WEGE3').click();
 
-  await page.locator('input').nth(0).fill(email);
-  await page.locator('input').nth(1).fill('StrongPass123!');
-  await page.getByTestId('login-submit-button').click();
+  await page.locator('[data-testid="open-rebalance-wizard"]:visible').first().click();
+  await expect(page.getByText('Qual a sua estrategia hoje?')).toBeVisible();
 
-  await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
+  await page.locator('[data-testid="strategy-quick-deposit"]:visible').first().click();
+
+  await expect(page.getByTestId('quick-deposit-input')).toBeVisible();
+  await expect(page.getByLabel('quick-target-WEGE3')).toHaveCount(0);
 });
 
-test('shows register error when email already exists', async ({ page }) => {
-  const email = 'existing.user@truew8.com';
+test('validates quick deposit total and processes sync portfolio flow', async ({ page }) => {
+  const email = 'ux.sync@truew8.com';
+  await authenticate(page, email);
 
-  await page.route('**/auth/register', async (route) => {
-    await route.fulfill({
-      status: 409,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        status: 409,
-        error: 'Conflict',
-        message: 'Email already registered',
-      }),
-    });
-  });
+  await page.goto('/');
 
-  await page.goto('/register');
+  await page.locator('[data-testid="open-rebalance-wizard"]:visible').first().click();
+  await page.locator('[data-testid="strategy-quick-deposit"]:visible').first().click();
 
-  await page.locator('input').nth(0).fill(email);
-  await page.locator('input').nth(1).fill('StrongPass123!');
-  await page.getByTestId('register-submit-button').click();
+  await expect(page.getByTestId('quick-generate-orders')).toHaveAttribute('aria-disabled', 'true');
 
-  await expect(page.getByText('Este email já está cadastrado. Faça login.')).toBeVisible();
+  await page.getByLabel('quick-target-PETR4').fill('40');
+  await page.getByLabel('quick-target-VALE3').fill('60');
+
+  await expect(page.getByTestId('quick-deposit-total-target')).toContainText('100.00%');
+  await expect(page.getByTestId('quick-generate-orders')).toBeEnabled();
+
+  await page.getByTestId('quick-generate-orders').click();
+
+  await expect(page.getByTestId('dashboard-user-email').first()).toContainText(email);
+
+  await page.locator('[data-testid="open-rebalance-wizard"]:visible').first().click();
+  await page.locator('[data-testid="strategy-sync-portfolio"]:visible').first().click();
+
+  await expect(page.getByTestId('sync-total-weight')).toContainText('100.00%');
+  await page.getByLabel('sync-weight-portfolio-1').fill('70');
+  await page.getByLabel('sync-weight-portfolio-2').fill('30');
+  await expect(page.getByTestId('sync-total-weight')).toContainText('100.00%');
+
+  await page.getByTestId('sync-process-rebalance').click();
+  await expect(page.getByTestId('dashboard-user-email').first()).toContainText(email);
 });

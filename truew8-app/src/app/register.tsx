@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { t } from '@/src/i18n';
@@ -10,7 +11,7 @@ import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
 
 export default function RegisterScreen() {
-  const { register, isAuthenticated } = useAuth();
+  const { register, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +22,10 @@ export default function RegisterScreen() {
       router.replace('/');
     }
   }, [isAuthenticated, router]);
+
+  if (isLoading) {
+    return <AuthLoadingScreen message="Validando sessao..." />;
+  }
 
   if (isAuthenticated) {
     return null;

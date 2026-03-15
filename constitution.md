@@ -64,6 +64,17 @@ src/main/resources/
 
 ## 🎯 ESSENTIAL ARCHITECTURE PATTERNS
 
+### Mobile-First Responsiveness (Frontend Mandatory)
+- Every screen and component MUST be designed and validated using a mobile-first approach.
+- Layout rules should start from small screens and progressively enhance for larger breakpoints.
+- Pull Requests must include responsive verification for at least these viewport classes:
+  - **Small** (mobile)
+  - **Large** (tablet / small desktop)
+  - **Wide** (desktop)
+  - **Ultra-wide** (large monitors)
+- Avoid fixed-width assumptions for content containers; prefer fluid widths with explicit max-width constraints per section.
+- Interactive controls (buttons, inputs, switches) must remain accessible and visually stable across all target viewport classes.
+
 ### API Routing Strategy
 - The API is served from a dedicated subdomain (for example `api.truew8.com`).
 - Endpoints MUST NOT use version prefixes such as `/api/v1`.

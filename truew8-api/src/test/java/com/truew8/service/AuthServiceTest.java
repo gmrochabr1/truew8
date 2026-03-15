@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.truew8.dto.AuthRequestDTO;
-import com.truew8.dto.AuthResponseDTO;
 import com.truew8.entity.User;
 import com.truew8.repository.UserRepository;
 import java.util.Optional;
@@ -36,11 +35,14 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private RefreshTokenRotationService refreshTokenRotationService;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtService);
+        authService = new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenRotationService, 1209600000L);
     }
 
     @Test
@@ -55,7 +57,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void registerShouldPersistHashedPasswordAndReturnToken() {
+    void registerShouldPersistHashedPasswordAndReturnSession() {
         AuthRequestDTO request = new AuthRequestDTO("new@truew8.com", "StrongPass123!");
 
         when(userRepository.existsByEmail("new@truew8.com")).thenReturn(false);
@@ -67,12 +69,15 @@ class AuthServiceTest {
         savedUser.setPasswordHash("hashed-password");
 
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(jwtService.generateToken(savedUser)).thenReturn("jwt-token");
+        when(jwtService.generateAccessToken(savedUser)).thenReturn("access-token");
+        when(refreshTokenRotationService.issueForUser(savedUser.getId(), 1209600000L)).thenReturn("refresh-id");
+        when(jwtService.generateRefreshToken(savedUser, "refresh-id")).thenReturn("refresh-token");
 
-        AuthResponseDTO response = authService.register(request);
+        AuthSession response = authService.register(request);
 
         assertEquals("new@truew8.com", response.email());
-        assertEquals("jwt-token", response.token());
+        assertEquals("access-token", response.accessToken());
+        assertEquals("refresh-token", response.refreshToken());
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(userCaptor.capture());
@@ -80,7 +85,7 @@ class AuthServiceTest {
 
         assertEquals("new@truew8.com", userToPersist.getEmail());
         assertEquals("hashed-password", userToPersist.getPasswordHash());
-        assertEquals(2, userToPersist.getOcrLimit());
+        assertEquals(2, userToPersist.getOcrCount());
     }
 
     @Test
@@ -102,7 +107,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginShouldReturnTokenForValidCredentials() {
+    void loginShouldReturnSessionForValidCredentials() {
         AuthRequestDTO request = new AuthRequestDTO("user@truew8.com", "StrongPass123!");
 
         User user = new User();
@@ -112,13 +117,16 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("user@truew8.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("StrongPass123!", "stored-hash")).thenReturn(true);
-        when(jwtService.generateToken(user)).thenReturn("jwt-token");
+        when(jwtService.generateAccessToken(user)).thenReturn("access-token");
+        when(refreshTokenRotationService.issueForUser(user.getId(), 1209600000L)).thenReturn("refresh-id");
+        when(jwtService.generateRefreshToken(user, "refresh-id")).thenReturn("refresh-token");
 
-        AuthResponseDTO response = authService.login(request);
+        AuthSession response = authService.login(request);
 
-        assertEquals("jwt-token", response.token());
+        assertEquals("access-token", response.accessToken());
+        assertEquals("refresh-token", response.refreshToken());
         assertEquals("user@truew8.com", response.email());
-        assertTrue(response.token().length() > 0);
-        verify(jwtService).generateToken(eq(user));
+        assertTrue(response.accessToken().length() > 0);
+        verify(jwtService).generateAccessToken(eq(user));
     }
 }

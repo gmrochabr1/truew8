@@ -29,6 +29,7 @@ export function DSInput({
       <Text style={styles.label}>{label}</Text>
       <TextInput
         testID={testID}
+        accessibilityLabel={testID}
         style={styles.input}
         value={value}
         onChangeText={onChangeText}

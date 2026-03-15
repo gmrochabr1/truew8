@@ -2,6 +2,8 @@ package com.truew8.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -10,13 +12,27 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Index;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "user_holdings")
+@Table(
+    name = "user_holdings",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "unique_user_asset_brokerage",
+            columnNames = {"user_id", "ticker", "brokerage"}
+        )
+    },
+    indexes = {
+        @Index(name = "idx_user_holdings_user_id", columnList = "user_id"),
+        @Index(name = "idx_user_holdings_ticker", columnList = "ticker")
+    }
+)
 public class UserHolding {
 
     @Id
@@ -30,18 +46,48 @@ public class UserHolding {
     @Column(nullable = false, length = 20)
     private String ticker;
 
-    @Column(nullable = false, precision = 19, scale = 4)
+    @Column(nullable = false, length = 100)
+    private String brokerage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private Market market;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "asset_type", nullable = false, length = 50)
+    private AssetType assetType;
+
+    @Column(nullable = false, precision = 18, scale = 8)
     private BigDecimal quantity;
 
-    @Column(name = "average_price", nullable = false, precision = 19, scale = 4)
+    @Column(name = "average_price", nullable = false, precision = 18, scale = 4)
     private BigDecimal averagePrice;
+
+    @Column(name = "is_locked", nullable = false)
+    private Boolean isLocked;
+
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
     @PrePersist
+    void prePersist() {
+        OffsetDateTime now = OffsetDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (isLocked == null) {
+            isLocked = false;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
     @PreUpdate
-    void updateTimestamp() {
+    void preUpdate() {
         updatedAt = OffsetDateTime.now();
     }
 
@@ -69,6 +115,30 @@ public class UserHolding {
         this.ticker = ticker;
     }
 
+    public String getBrokerage() {
+        return brokerage;
+    }
+
+    public void setBrokerage(String brokerage) {
+        this.brokerage = brokerage;
+    }
+
+    public Market getMarket() {
+        return market;
+    }
+
+    public void setMarket(Market market) {
+        this.market = market;
+    }
+
+    public AssetType getAssetType() {
+        return assetType;
+    }
+
+    public void setAssetType(AssetType assetType) {
+        this.assetType = assetType;
+    }
+
     public BigDecimal getQuantity() {
         return quantity;
     }
@@ -83,6 +153,22 @@ public class UserHolding {
 
     public void setAveragePrice(BigDecimal averagePrice) {
         this.averagePrice = averagePrice;
+    }
+
+    public Boolean getIsLocked() {
+        return isLocked;
+    }
+
+    public void setIsLocked(Boolean locked) {
+        isLocked = locked;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(OffsetDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public OffsetDateTime getUpdatedAt() {

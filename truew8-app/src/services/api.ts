@@ -1,6 +1,8 @@
 import axios from "axios";
+import { Platform } from 'react-native';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
+const isWeb = Platform.OS === 'web';
 
 let authTokenGetter: () => string | null = () => null;
 let unauthorizedHandler: () => void = () => {};
@@ -16,6 +18,7 @@ export const setUnauthorizedHandler = (handler: () => void) => {
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -30,7 +33,7 @@ apiClient.interceptors.request.use((config) => {
     delete config.headers["Content-Type"];
   }
 
-  if (token && !isAuthEndpoint) {
+  if (token && !isAuthEndpoint && !isWeb) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
@@ -39,10 +42,20 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const requestUrl = error.config?.url ?? "";
     const isAuthEndpoint = requestUrl.startsWith("/auth/");
     const status = error.response?.status;
+
+    if (status === 401 && !isAuthEndpoint && !error.config?._retry) {
+      try {
+        error.config._retry = true;
+        await apiClient.post('/auth/refresh');
+        return apiClient.request(error.config);
+      } catch {
+        unauthorizedHandler();
+      }
+    }
 
     if (status === 401 && !isAuthEndpoint) {
       unauthorizedHandler();

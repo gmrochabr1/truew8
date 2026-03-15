@@ -11,17 +11,17 @@ export type StoredSession = {
 };
 
 export async function saveSession(session: StoredSession): Promise<void> {
-  const serialized = JSON.stringify(session);
   if (isWeb) {
-    globalThis.localStorage?.setItem(SESSION_KEY, serialized);
+    // Web sessions are managed by HttpOnly cookies; avoid JS token persistence.
     return;
   }
+  const serialized = JSON.stringify(session);
   await SecureStore.setItemAsync(SESSION_KEY, serialized);
 }
 
 export async function loadSession(): Promise<StoredSession | null> {
   const raw = isWeb
-    ? globalThis.localStorage?.getItem(SESSION_KEY) ?? null
+    ? globalThis.sessionStorage?.getItem(SESSION_KEY) ?? globalThis.localStorage?.getItem(SESSION_KEY) ?? null
     : await SecureStore.getItemAsync(SESSION_KEY);
 
   if (!raw) {
@@ -42,6 +42,7 @@ export async function loadSession(): Promise<StoredSession | null> {
 
 export async function clearSession(): Promise<void> {
   if (isWeb) {
+    globalThis.sessionStorage?.removeItem(SESSION_KEY);
     globalThis.localStorage?.removeItem(SESSION_KEY);
     return;
   }

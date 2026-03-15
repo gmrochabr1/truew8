@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 
-import { login as loginRequest, register as registerRequest } from '@/src/services/auth';
+import { getCurrentSession, login as loginRequest, logout as logoutRequest, register as registerRequest } from '@/src/services/auth';
 import { clearSession, loadSession, saveSession } from '@/src/services/authStorage';
 import { setAuthTokenGetter, setUnauthorizedHandler } from '@/src/services/api';
 
@@ -17,6 +18,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const isWeb = Platform.OS === 'web';
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,29 +42,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const bootstrap = async () => {
       const session = await loadSession();
-      setToken(session?.token ?? null);
-      setEmail(session?.email ?? null);
+
+      if (session?.email) {
+        setToken(session.token ?? null);
+        setEmail(session.email);
+        setIsLoading(false);
+        return;
+      }
+
+      if (isWeb) {
+        try {
+          const currentSession = await getCurrentSession();
+          setToken(currentSession.token ?? null);
+          setEmail(currentSession.email ?? null);
+        } catch {
+          setToken(null);
+          setEmail(null);
+        }
+      }
+
       setIsLoading(false);
     };
 
     void bootstrap();
-  }, []);
+  }, [isWeb]);
 
   const register = async (rawEmail: string, password: string) => {
     const response = await registerRequest({ email: rawEmail.trim(), password });
-    setToken(response.token);
+    setToken(response.token ?? null);
     setEmail(response.email);
-    await saveSession({ token: response.token, email: response.email });
+    if (!isWeb && response.token) {
+      await saveSession({ token: response.token, email: response.email });
+    }
   };
 
   const login = async (rawEmail: string, password: string) => {
     const response = await loginRequest({ email: rawEmail.trim(), password });
-    setToken(response.token);
+    setToken(response.token ?? null);
     setEmail(response.email);
-    await saveSession({ token: response.token, email: response.email });
+    if (!isWeb && response.token) {
+      await saveSession({ token: response.token, email: response.email });
+    }
   };
 
   const logout = async () => {
+    try {
+      await logoutRequest();
+    } catch {
+      // Local cleanup below is enough when network logout fails.
+    }
     setToken(null);
     setEmail(null);
     await clearSession();
@@ -73,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token,
       email,
       isLoading,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(email),
       register,
       login,
       logout,

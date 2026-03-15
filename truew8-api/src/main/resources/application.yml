@@ -26,9 +26,19 @@ server:
 app:
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://truew8.com,https://www.truew8.com}
+  security:
+    auth-rate-limit:
+      enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
+      max-attempts: ${AUTH_RATE_LIMIT_MAX_ATTEMPTS:15}
+      window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+    cookies:
+      access-cookie-name: ${AUTH_ACCESS_COOKIE_NAME:truew8_access}
+      refresh-cookie-name: ${AUTH_REFRESH_COOKIE_NAME:truew8_refresh}
+      secure: ${AUTH_COOKIE_SECURE:true}
   jwt:
     secret: ${JWT_SECRET:truew8-dev-jwt-secret-min-32-bytes-please-change}
-    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+    access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:1209600000}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
   gemini:

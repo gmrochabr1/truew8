@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -24,20 +25,32 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "ocr_limit", nullable = false)
-    private Integer ocrLimit;
+    @Column(name = "ocr_count", nullable = false)
+    private Integer ocrCount;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
     @PrePersist
     void prePersist() {
-        if (ocrLimit == null) {
-            ocrLimit = 2;
+        if (ocrCount == null) {
+            ocrCount = 2;
         }
+        OffsetDateTime now = OffsetDateTime.now();
         if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
+            createdAt = now;
         }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = OffsetDateTime.now();
     }
 
     public UUID getId() {
@@ -64,12 +77,12 @@ public class User {
         this.passwordHash = passwordHash;
     }
 
-    public Integer getOcrLimit() {
-        return ocrLimit;
+    public Integer getOcrCount() {
+        return ocrCount;
     }
 
-    public void setOcrLimit(Integer ocrLimit) {
-        this.ocrLimit = ocrLimit;
+    public void setOcrCount(Integer ocrCount) {
+        this.ocrCount = ocrCount;
     }
 
     public OffsetDateTime getCreatedAt() {
@@ -78,5 +91,13 @@ public class User {
 
     public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public OffsetDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(OffsetDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

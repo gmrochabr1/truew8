@@ -14,6 +14,7 @@ spring:
 app:
   jwt:
     secret: test-jwt-secret-at-least-32-characters-long
-    expiration-ms: 3600000
+    access-expiration-ms: 3600000
+    refresh-expiration-ms: 7200000
   gemini:
     api-key: test-key

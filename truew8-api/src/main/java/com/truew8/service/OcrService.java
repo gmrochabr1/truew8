@@ -25,13 +25,13 @@ public class OcrService {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
-        if (user.getOcrLimit() == null || user.getOcrLimit() <= 0) {
+        if (user.getOcrCount() == null || user.getOcrCount() <= 0) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "OCR limit reached");
         }
 
         List<OcrHoldingDTO> holdings = geminiVisionService.extractHoldingsFromImage(imageBytes, mimeType);
 
-        user.setOcrLimit(user.getOcrLimit() - 1);
+        user.setOcrCount(user.getOcrCount() - 1);
         userRepository.save(user);
 
         return holdings;

@@ -21,23 +21,50 @@ import org.springframework.stereotype.Service;
 public class JwtService {
 
     private static final int MIN_KEY_BYTES = 32;
+    private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_TOKEN_TYPE = "tokenType";
+    private static final String CLAIM_REFRESH_TOKEN_ID = "refreshTokenId";
+    private static final String TOKEN_TYPE_ACCESS = "access";
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
 
     private final String secret;
-    private final long expirationMs;
+    private final long accessExpirationMs;
+    private final long refreshExpirationMs;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-ms}") long expirationMs
+            @Value("${app.jwt.access-expiration-ms:${app.jwt.expiration-ms:900000}}") long accessExpirationMs,
+            @Value("${app.jwt.refresh-expiration-ms:1209600000}") long refreshExpirationMs
     ) {
         this.secret = secret;
-        this.expirationMs = expirationMs;
+        this.accessExpirationMs = accessExpirationMs;
+        this.refreshExpirationMs = refreshExpirationMs;
     }
 
     public String generateToken(User user) {
+        return generateAccessToken(user);
+    }
+
+    public String generateAccessToken(User user) {
         return buildToken(
-                Map.of("userId", user.getId().toString()),
+                Map.of(
+                        CLAIM_USER_ID, user.getId().toString(),
+                        CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS
+                ),
                 user.getEmail(),
-                expirationMs
+                accessExpirationMs
+        );
+    }
+
+    public String generateRefreshToken(User user, String refreshTokenId) {
+        return buildToken(
+                Map.of(
+                        CLAIM_USER_ID, user.getId().toString(),
+                        CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH,
+                        CLAIM_REFRESH_TOKEN_ID, refreshTokenId
+                ),
+                user.getEmail(),
+                refreshExpirationMs
         );
     }
 
@@ -47,13 +74,37 @@ public class JwtService {
 
     public UUID extractUserId(String token) {
         Claims claims = extractAllClaims(token);
-        String userId = claims.get("userId", String.class);
+        String userId = claims.get(CLAIM_USER_ID, String.class);
         return userId == null ? null : UUID.fromString(userId);
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get(CLAIM_TOKEN_TYPE, String.class));
+    }
+
+    public String extractRefreshTokenId(String token) {
+        return extractClaim(token, claims -> claims.get(CLAIM_REFRESH_TOKEN_ID, String.class));
+    }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
+        return isAccessTokenValid(token, userDetails);
+    }
+
+    public boolean isAccessTokenValid(String token, UserDetails userDetails) {
         String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        String tokenType = extractTokenType(token);
+        return TOKEN_TYPE_ACCESS.equals(tokenType)
+                && username.equals(userDetails.getUsername())
+                && !isTokenExpired(token);
+    }
+
+    public boolean isRefreshTokenValid(String token, User user) {
+        String username = extractUsername(token);
+        String tokenType = extractTokenType(token);
+        return TOKEN_TYPE_REFRESH.equals(tokenType)
+                && username.equals(user.getEmail())
+                && !isTokenExpired(token)
+                && extractRefreshTokenId(token) != null;
     }
 
     public boolean isTokenExpired(String token) {

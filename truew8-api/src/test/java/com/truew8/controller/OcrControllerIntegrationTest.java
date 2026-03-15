@@ -45,7 +45,7 @@ class OcrControllerIntegrationTest {
         user.setId(UUID.randomUUID());
         user.setEmail(EMAIL);
         user.setPasswordHash("hashed");
-        user.setOcrLimit(2);
+        user.setOcrCount(2);
         userRepository.save(user);
 
         Mockito.when(geminiApiClient.extractHoldingsJson(

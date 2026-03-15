@@ -16,7 +16,7 @@ class JwtServiceTest {
 
     @Test
     void shouldGenerateAndValidateToken() {
-        JwtService jwtService = new JwtService(SECRET, 60_000L);
+        JwtService jwtService = new JwtService(SECRET, 60_000L, 120_000L);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -32,13 +32,13 @@ class JwtServiceTest {
 
         assertEquals("user@truew8.com", jwtService.extractUsername(token));
         assertEquals(user.getId(), jwtService.extractUserId(token));
-        assertTrue(jwtService.isTokenValid(token, userDetails));
+        assertTrue(jwtService.isAccessTokenValid(token, userDetails));
         assertFalse(jwtService.isTokenExpired(token));
     }
 
     @Test
     void shouldExpireToken() throws InterruptedException {
-        JwtService jwtService = new JwtService(SECRET, 30L);
+        JwtService jwtService = new JwtService(SECRET, 30L, 120_000L);
 
         User user = new User();
         user.setId(UUID.randomUUID());
@@ -53,7 +53,7 @@ class JwtServiceTest {
 
     @Test
     void shouldFailFastForWeakSecret() {
-        JwtService jwtService = new JwtService("weak-secret", 60_000L);
+        JwtService jwtService = new JwtService("weak-secret", 60_000L, 120_000L);
 
         User user = new User();
         user.setId(UUID.randomUUID());

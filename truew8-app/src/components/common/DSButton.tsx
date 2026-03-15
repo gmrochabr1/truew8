@@ -6,12 +6,13 @@ import { theme } from '@/src/theme/tokens';
 type DSButtonProps = {
   title: string;
   onPress: () => void;
+  disabled?: boolean;
   testID?: string;
 };
 
-export function DSButton({ title, onPress, testID }: DSButtonProps) {
+export function DSButton({ title, onPress, disabled = false, testID }: DSButtonProps) {
   return (
-    <Pressable testID={testID} style={styles.button} onPress={onPress}>
+    <Pressable testID={testID} style={[styles.button, disabled ? styles.buttonDisabled : null]} onPress={onPress} disabled={disabled}>
       <Text style={styles.text}>{title}</Text>
     </Pressable>
   );
@@ -24,6 +25,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   text: {
     color: theme.colors.primaryText,

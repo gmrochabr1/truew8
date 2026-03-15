@@ -6,7 +6,7 @@ type AuthPayload = {
 };
 
 export type AuthResponse = {
-  token: string;
+  token?: string | null;
   email: string;
 };
 
@@ -18,4 +18,13 @@ export async function register(payload: AuthPayload): Promise<AuthResponse> {
 export async function login(payload: AuthPayload): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/login', payload);
   return data;
+}
+
+export async function getCurrentSession(): Promise<AuthResponse> {
+  const { data } = await apiClient.get<AuthResponse>('/auth/me');
+  return data;
+}
+
+export async function logout(): Promise<void> {
+  await apiClient.post('/auth/logout');
 }
