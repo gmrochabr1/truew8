@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { t } from '@/src/i18n';
+import { getAuthErrorMessageKey } from '@/src/services/authErrors';
 import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
 
@@ -27,11 +28,16 @@ export default function LoginScreen() {
 
   const onSubmit = async () => {
     setError('');
+    if (!email.trim() || !password) {
+      setError(t('auth.errorInvalidData'));
+      return;
+    }
+
     try {
       await login(email, password);
       router.replace('/');
-    } catch {
-      setError(t('auth.error'));
+    } catch (submitError) {
+      setError(t(getAuthErrorMessageKey(submitError, 'login')));
     }
   };
 

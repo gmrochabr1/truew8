@@ -2,6 +2,7 @@ package com.truew8.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.truew8.entity.User;
@@ -48,5 +49,17 @@ class JwtServiceTest {
         Thread.sleep(60L);
 
         assertTrue(jwtService.isTokenExpired(token));
+    }
+
+    @Test
+    void shouldFailFastForWeakSecret() {
+        JwtService jwtService = new JwtService("weak-secret", 60_000L);
+
+        User user = new User();
+        user.setId(UUID.randomUUID());
+        user.setEmail("weak@truew8.com");
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> jwtService.generateToken(user));
+        assertTrue(exception.getMessage().contains("at least 32 bytes"));
     }
 }

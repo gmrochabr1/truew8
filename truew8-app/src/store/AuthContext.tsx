@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 import { login as loginRequest, register as registerRequest } from '@/src/services/auth';
 import { clearSession, loadSession, saveSession } from '@/src/services/authStorage';
-import { setAuthTokenGetter } from '@/src/services/api';
+import { setAuthTokenGetter, setUnauthorizedHandler } from '@/src/services/api';
 
 type AuthContextValue = {
   token: string | null;
@@ -26,6 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token]);
 
   useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setToken(null);
+      setEmail(null);
+      void clearSession();
+    });
+
+    return () => {
+      setUnauthorizedHandler(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
     const bootstrap = async () => {
       const session = await loadSession();
       setToken(session?.token ?? null);
@@ -37,14 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = async (rawEmail: string, password: string) => {
-    const response = await registerRequest({ email: rawEmail, password });
+    const response = await registerRequest({ email: rawEmail.trim(), password });
     setToken(response.token);
     setEmail(response.email);
     await saveSession({ token: response.token, email: response.email });
   };
 
   const login = async (rawEmail: string, password: string) => {
-    const response = await loginRequest({ email: rawEmail, password });
+    const response = await loginRequest({ email: rawEmail.trim(), password });
     setToken(response.token);
     setEmail(response.email);
     await saveSession({ token: response.token, email: response.email });

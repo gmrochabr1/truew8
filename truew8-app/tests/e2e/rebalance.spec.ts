@@ -27,17 +27,41 @@ test('registers and logs in a new user then shows email on dashboard', async ({ 
 
   await page.goto('/register');
 
-  await page.getByTestId('register-email-input').fill(email);
-  await page.getByTestId('register-password-input').fill('StrongPass123!');
+  await page.locator('input').nth(0).fill(email);
+  await page.locator('input').nth(1).fill('StrongPass123!');
   await page.getByTestId('register-submit-button').click();
 
   await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
 
   await page.getByTestId('button-logout').click();
 
-  await page.getByTestId('login-email-input').fill(email);
-  await page.getByTestId('login-password-input').fill('StrongPass123!');
+  await page.locator('input').nth(0).fill(email);
+  await page.locator('input').nth(1).fill('StrongPass123!');
   await page.getByTestId('login-submit-button').click();
 
   await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
+});
+
+test('shows register error when email already exists', async ({ page }) => {
+  const email = 'existing.user@truew8.com';
+
+  await page.route('**/auth/register', async (route) => {
+    await route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        status: 409,
+        error: 'Conflict',
+        message: 'Email already registered',
+      }),
+    });
+  });
+
+  await page.goto('/register');
+
+  await page.locator('input').nth(0).fill(email);
+  await page.locator('input').nth(1).fill('StrongPass123!');
+  await page.getByTestId('register-submit-button').click();
+
+  await expect(page.getByText('Este email já está cadastrado. Faça login.')).toBeVisible();
 });

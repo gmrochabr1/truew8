@@ -5,6 +5,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { t } from '@/src/i18n';
+import { getAuthErrorMessageKey } from '@/src/services/authErrors';
 import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
 
@@ -27,11 +28,21 @@ export default function RegisterScreen() {
 
   const onSubmit = async () => {
     setError('');
+    if (!email.trim() || !password) {
+      setError(t('auth.errorInvalidData'));
+      return;
+    }
+
+    if (password.length < 8 || password.length > 72) {
+      setError(t('auth.errorWeakPassword'));
+      return;
+    }
+
     try {
       await register(email, password);
       router.replace('/');
-    } catch {
-      setError(t('auth.error'));
+    } catch (submitError) {
+      setError(t(getAuthErrorMessageKey(submitError, 'register')));
     }
   };
 

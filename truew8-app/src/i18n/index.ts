@@ -28,10 +28,15 @@ const ptBr = {
   'auth.noAccount': 'Não tem conta? Registre-se',
   'auth.haveAccount': 'Já tem conta? Entre',
   'auth.error': 'Não foi possível autenticar. Verifique os dados.',
+  'auth.errorInvalidCredentials': 'Email ou senha inválidos.',
+  'auth.errorEmailExists': 'Este email já está cadastrado. Faça login.',
+  'auth.errorWeakPassword': 'A senha deve ter entre 8 e 72 caracteres.',
+  'auth.errorInvalidData': 'Revise os dados informados e tente novamente.',
+  'auth.errorNetwork': 'Não foi possível conectar ao servidor.',
   'auth.logout': 'Terminar sessão',
   'dashboard.welcome': 'Sessão ativa para',
 } as const;
 
-type TranslationKey = keyof typeof ptBr;
+export type TranslationKey = keyof typeof ptBr;
 
 export const t = (key: TranslationKey): string => ptBr[key];
