@@ -1,1 +1,3 @@
 truew8-api/target/
+.env
+truew8-api/src/main/resources/application-development.yml

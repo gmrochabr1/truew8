@@ -1,12 +1,12 @@
-version: "3.9"
-
 services:
   traefik:
     image: traefik:v3.1
+    environment:
+      - DOCKER_API_VERSION=1.40
     command:
       - --providers.docker=true
-      - --providers.docker.swarmMode=true
       - --providers.docker.exposedbydefault=false
+      # IMPORTANTE: Remova qualquer linha que tenha "swarm" no nome
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
@@ -28,12 +28,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - letsencrypt_data:/letsencrypt
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
     networks:
       - edge
 
@@ -43,6 +37,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-truew8}
       POSTGRES_USER: ${POSTGRES_USER:-truew8}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5442:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     deploy:
@@ -54,7 +50,11 @@ services:
         constraints:
           - node.labels.db == true
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-truew8} -d ${POSTGRES_DB:-truew8}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-truew8} -d ${POSTGRES_DB:-truew8}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,7 +62,9 @@ services:
       - backend
 
   api:
-    image: ghcr.io/truew8/truew8-api:latest
+    build:
+      context: ./truew8-api
+      dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
@@ -81,11 +83,16 @@ services:
         condition: on-failure
       labels:
         - traefik.enable=true
-        - traefik.http.routers.truew8-api.rule=Host(`${TRAEFIK_DOMAIN}`) && PathPrefix(`/api`)
+        - traefik.http.routers.truew8-api.rule=Host(`${TRAEFIK_DOMAIN}`)
         - traefik.http.routers.truew8-api.entrypoints=websecure
         - traefik.http.routers.truew8-api.tls=true
         - traefik.http.routers.truew8-api.tls.certresolver=le
         - traefik.http.services.truew8-api.loadbalancer.server.port=8080
+      resources:
+        limits:
+          memory: 2G  # Limite máximo de uso
+        reservations:
+          memory: 1G  # Memória garantida para o arranque
     networks:
       - edge
       - backend
@@ -96,8 +103,8 @@ volumes:
 
 networks:
   edge:
-    driver: overlay
+    driver: bridge
     attachable: true
   backend:
-    driver: overlay
+    driver: bridge
     attachable: true
