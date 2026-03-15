@@ -14,7 +14,7 @@ export type RebalanceAllocation = {
 
 export type RebalanceRequest = {
   newDeposit: number;
-  currentHoldings: RebalanceHolding[];
+  currentHoldings?: RebalanceHolding[];
   targetPortfolio: RebalanceAllocation[];
 };
 
@@ -30,6 +30,6 @@ export type RebalanceResponse = {
 };
 
 export async function calculateRebalance(payload: RebalanceRequest): Promise<RebalanceResponse> {
-  const { data } = await apiClient.post<RebalanceResponse>('/v1/rebalance', payload);
+  const { data } = await apiClient.post<RebalanceResponse>('/rebalance', payload);
   return data;
 }

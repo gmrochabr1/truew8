@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Redirect, router } from 'expo-router';
 
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { t } from '@/src/i18n';
 import { calculateRebalance, RebalanceOrder } from '@/src/services/rebalance';
+import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
 
 type HoldingRow = { ticker: string; quantity: string; price: string };
@@ -16,6 +18,7 @@ const toNumber = (value: string): number => {
 };
 
 export default function RebalanceScreen() {
+  const { email, isLoading, isAuthenticated, logout } = useAuth();
   const [newDeposit, setNewDeposit] = useState('1000');
   const [holdings, setHoldings] = useState<HoldingRow[]>([
     { ticker: 'PETR4', quantity: '100', price: '30' },
@@ -82,8 +85,27 @@ export default function RebalanceScreen() {
     }
   };
 
+  if (!isLoading && !isAuthenticated) {
+    return <Redirect href="/login" />;
+  }
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <View style={styles.sessionHeader}>
+        <View>
+          <Text style={styles.sessionLabel}>{t('dashboard.welcome')}</Text>
+          <Text testID="dashboard-user-email" style={styles.sessionEmail}>{email ?? '-'}</Text>
+        </View>
+        <DSButton
+          title={t('auth.logout')}
+          onPress={async () => {
+            await logout();
+            router.replace('/login');
+          }}
+          testID="button-logout"
+        />
+      </View>
+
       <Text style={styles.title}>{t('rebalance.screenTitle')}</Text>
 
       <DSInput
@@ -149,7 +171,6 @@ export default function RebalanceScreen() {
       <DSButton title={t('rebalance.addTarget')} onPress={addTarget} testID="button-add-target" />
 
       <DSButton title={t('rebalance.submit')} onPress={submit} testID="button-submit-rebalance" />
-
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {mappedOrders.length > 0 ? (
@@ -187,6 +208,26 @@ const styles = StyleSheet.create({
   title: {
     color: theme.colors.textPrimary,
     fontSize: 24,
+    fontWeight: '700',
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.panel,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+  },
+  sessionLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sessionEmail: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
     fontWeight: '700',
   },
   sectionTitle: {

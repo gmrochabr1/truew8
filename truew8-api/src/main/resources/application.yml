@@ -24,6 +24,11 @@ server:
   port: ${SERVER_PORT:8080}
 
 app:
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*,https://truew8.com,https://www.truew8.com}
+  jwt:
+    secret: ${JWT_SECRET:truew8-dev-jwt-secret-min-32-bytes-please-change}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
   gemini:

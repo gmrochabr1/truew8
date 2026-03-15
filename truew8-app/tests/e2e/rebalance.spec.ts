@@ -1,36 +1,43 @@
 import { expect, test } from '@playwright/test';
 
-test('renders rebalance result table after submitting the form', async ({ page }) => {
-  await page.route('**/api/v1/rebalance', async (route) => {
+test('registers and logs in a new user then shows email on dashboard', async ({ page }) => {
+  const email = 'new.user@truew8.com';
+
+  await page.route('**/auth/register', async (route) => {
     await route.fulfill({
-      status: 200,
+      status: 201,
       contentType: 'application/json',
       body: JSON.stringify({
-        orders: [
-          {
-            action: 'BUY',
-            ticker: 'PETR4',
-            quantity: 100,
-            estimatedValue: 3000,
-          },
-        ],
+        token: 'register-token',
+        email,
       }),
     });
   });
 
-  await page.goto('/');
+  await page.route('**/auth/login', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        token: 'login-token',
+        email,
+      }),
+    });
+  });
 
-  await page.getByTestId('input-deposit').fill('1500');
-  await page.getByTestId('holding-ticker-0').fill('PETR4');
-  await page.getByTestId('holding-quantity-0').fill('100');
-  await page.getByTestId('holding-price-0').fill('30');
-  await page.getByTestId('target-ticker-0').fill('PETR4');
-  await page.getByTestId('target-percentage-0').fill('1');
-  await page.getByTestId('target-price-0').fill('30');
+  await page.goto('/register');
 
-  await page.getByTestId('button-submit-rebalance').click();
+  await page.getByTestId('register-email-input').fill(email);
+  await page.getByTestId('register-password-input').fill('StrongPass123!');
+  await page.getByTestId('register-submit-button').click();
 
-  await expect(page.getByTestId('rebalance-results-table')).toBeVisible();
-  await expect(page.getByText('PETR4')).toBeVisible();
-  await expect(page.getByText('COMPRAR')).toBeVisible();
+  await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
+
+  await page.getByTestId('button-logout').click();
+
+  await page.getByTestId('login-email-input').fill(email);
+  await page.getByTestId('login-password-input').fill('StrongPass123!');
+  await page.getByTestId('login-submit-button').click();
+
+  await expect(page.getByTestId('dashboard-user-email')).toContainText(email);
 });

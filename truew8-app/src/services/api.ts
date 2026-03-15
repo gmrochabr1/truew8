@@ -1,6 +1,12 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080/api";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
+
+let authTokenGetter: () => string | null = () => null;
+
+export const setAuthTokenGetter = (getter: () => string | null) => {
+  authTokenGetter = getter;
+};
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -11,9 +17,8 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = process.env.EXPO_PUBLIC_JWT_TOKEN;
+  const token = authTokenGetter();
 
-  // Token injection is centralized here; replace with SecureStore/context lookup later.
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

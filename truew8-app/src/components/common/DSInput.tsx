@@ -9,6 +9,8 @@ type DSInputProps = {
   onChangeText: (value: string) => void;
   placeholder?: string;
   keyboardType?: 'default' | 'numeric';
+  secureTextEntry?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   testID?: string;
 };
 
@@ -18,6 +20,8 @@ export function DSInput({
   onChangeText,
   placeholder,
   keyboardType = 'default',
+  secureTextEntry = false,
+  autoCapitalize = 'sentences',
   testID,
 }: DSInputProps) {
   return (
@@ -30,6 +34,8 @@ export function DSInput({
         onChangeText={onChangeText}
         placeholder={placeholder}
         keyboardType={keyboardType}
+        secureTextEntry={secureTextEntry}
+        autoCapitalize={autoCapitalize}
         placeholderTextColor={theme.colors.textMuted}
       />
     </View>

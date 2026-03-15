@@ -9,7 +9,7 @@ import java.util.List;
 
 public record RebalanceRequestDTO(
         @NotNull @DecimalMin(value = "0", inclusive = true) BigDecimal newDeposit,
-        @NotNull List<@Valid AssetDTO> currentHoldings,
+        List<@Valid AssetDTO> currentHoldings,
         @NotEmpty List<@Valid AllocationDTO> targetPortfolio
 ) {
 }

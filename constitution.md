@@ -64,6 +64,12 @@ src/main/resources/
 
 ## 🎯 ESSENTIAL ARCHITECTURE PATTERNS
 
+### API Routing Strategy
+- The API is served from a dedicated subdomain (for example `api.truew8.com`).
+- Endpoints MUST NOT use version prefixes such as `/api/v1`.
+- Use clean resource paths such as `/auth/login`, `/rebalance`, `/ocr/extract`.
+- Breaking changes should be managed via backward-compatible rollout and deprecation windows, not URL versioning.
+
 ### 1. The Rebalancing Engine (Backend Core)
 The math must be isolated and pure. The backend is the single source of truth for calculations to avoid frontend discrepancies.
 - **Input**: User's current holdings + Target Model Portfolio + New Deposit Amount.
@@ -111,7 +117,7 @@ Standardized API responses for errors. The frontend must map these to user-frien
   "status": 400,
   "errorCode": "OCR_EXTRACTION_FAILED",
   "message": "We couldn't read the image clearly. Please upload a sharper screenshot.",
-  "path": "/api/v1/portfolios/extract"
+  "path": "/portfolios/extract"
 }
 ```
 
@@ -151,5 +157,5 @@ Os testes End-to-End (E2E) devem validar as **Jornadas Críticas do Utilizador (
 
 **Cenários E2E Obrigatórios (CUJs):**
 1. **O Fluxo de Valor (Sucesso):** Preencher ativos -> Submeter -> Validar se a "Boleta Inteligente" é renderizada no ecrã com as colunas corretas (Ação, Ticker, Quantidade).
-2. **Resiliência do OCR (Mocking de Rede):** Intercetar a chamada (`page.route`) para `/api/v1/ocr/extract` -> Forçar um erro 500 (simulando falha do Gemini/imagem ilegível) -> Validar se a aplicação exibe o `Snackbar` de erro de forma elegante.
+2. **Resiliência do OCR (Mocking de Rede):** Intercetar a chamada (`page.route`) para `/ocr/extract` -> Forçar um erro 500 (simulando falha do Gemini/imagem ilegível) -> Validar se a aplicação exibe o `Snackbar` de erro de forma elegante.
 3. **A Conversão (Paywall):** Intercetar a API para devolver o código `402 Payment Required` após o clique no botão de Upload -> Validar se o *router* do Expo redireciona imediatamente o utilizador para o ecrã de subscrição (`/paywall`).

@@ -8,12 +8,12 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: 'http://localhost:19007',
+    baseURL: 'http://localhost:8083',
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'yarn web -- --port 19007',
-    url: 'http://localhost:19007',
+    command: 'yarn web',
+    url: 'http://localhost:8083',
     reuseExistingServer: true,
     timeout: 180_000,
   },

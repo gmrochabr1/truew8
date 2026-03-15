@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/components/**/*.ts",
+    "src/services/**/*.ts",
+    "src/store/**/*.ts",
+    "src/i18n/**/*.ts",
+    "src/theme/**/*.ts",
+    "tests/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}
