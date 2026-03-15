@@ -2,31 +2,50 @@ package com.truew8.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "users")
-public class User {
+@Table(
+    name = "portfolios",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "unique_portfolio_name_per_user",
+            columnNames = {"user_id", "name"}
+        )
+    }
+)
+public class Portfolio {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
-    private String email;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(name = "password_hash", nullable = false)
-    private String passwordHash;
+    @Column(nullable = false, length = 100)
+    private String name;
 
-    @Column(name = "ocr_limit", nullable = false)
-    private Integer ocrCount;
+    @Column(length = 255)
+    private String description;
+
+    @OneToMany(mappedBy = "portfolio")
+    private List<UserHolding> holdings = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -36,9 +55,6 @@ public class User {
 
     @PrePersist
     void prePersist() {
-        if (ocrCount == null) {
-            ocrCount = 2;
-        }
         OffsetDateTime now = OffsetDateTime.now();
         if (createdAt == null) {
             createdAt = now;
@@ -61,28 +77,36 @@ public class User {
         this.id = id;
     }
 
-    public String getEmail() {
-        return email;
+    public User getUser() {
+        return user;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public void setUser(User user) {
+        this.user = user;
     }
 
-    public String getPasswordHash() {
-        return passwordHash;
+    public String getName() {
+        return name;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public Integer getOcrCount() {
-        return ocrCount;
+    public String getDescription() {
+        return description;
     }
 
-    public void setOcrCount(Integer ocrCount) {
-        this.ocrCount = ocrCount;
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<UserHolding> getHoldings() {
+        return holdings;
+    }
+
+    public void setHoldings(List<UserHolding> holdings) {
+        this.holdings = holdings;
     }
 
     public OffsetDateTime getCreatedAt() {

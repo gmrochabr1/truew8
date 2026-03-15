@@ -8,7 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserHoldingRepository extends JpaRepository<UserHolding, UUID> {
 
-    List<UserHolding> findByUserId(UUID userId);
+    List<UserHolding> findByPortfolioId(UUID portfolioId);
 
-    Optional<UserHolding> findByIdAndUserId(UUID id, UUID userId);
+    List<UserHolding> findByPortfolioUserId(UUID userId);
+
+    Optional<UserHolding> findByIdAndPortfolioUserId(UUID id, UUID userId);
 }

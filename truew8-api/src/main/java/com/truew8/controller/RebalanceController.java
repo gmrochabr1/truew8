@@ -47,7 +47,7 @@ public class RebalanceController {
                 && authentication.getName() != null) {
             User user = userRepository.findByEmail(authentication.getName()).orElse(null);
             if (user != null) {
-                effectiveHoldings = userHoldingRepository.findByUserId(user.getId()).stream()
+                effectiveHoldings = userHoldingRepository.findByPortfolioUserId(user.getId()).stream()
                         .map(holding -> new AssetDTO(
                                 holding.getTicker(),
                                 holding.getQuantity(),

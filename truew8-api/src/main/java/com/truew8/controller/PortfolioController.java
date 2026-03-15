@@ -33,7 +33,7 @@ public class PortfolioController {
     @GetMapping("/holdings")
     public ResponseEntity<List<UserHoldingDTO>> holdings(Authentication authentication) {
         UUID userId = resolveUserId(authentication);
-        List<UserHoldingDTO> response = userHoldingRepository.findByUserId(userId).stream()
+        List<UserHoldingDTO> response = userHoldingRepository.findByPortfolioUserId(userId).stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(response);
@@ -46,7 +46,7 @@ public class PortfolioController {
             Authentication authentication
     ) {
         UUID userId = resolveUserId(authentication);
-        UserHolding holding = userHoldingRepository.findByIdAndUserId(holdingId, userId)
+        UserHolding holding = userHoldingRepository.findByIdAndPortfolioUserId(holdingId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Holding not found"));
 
         holding.setIsLocked(!Boolean.TRUE.equals(holding.getIsLocked()));

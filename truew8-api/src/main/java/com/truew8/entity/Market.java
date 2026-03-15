@@ -4,5 +4,13 @@ public enum Market {
     B3,
     NYSE,
     NASDAQ,
-    CRYPTO
+    TSX,
+    LSE,
+    EURONEXT,
+    XETRA,
+    TSE,
+    HKEX,
+    ASX,
+    CRYPTO,
+    FOREX
 }

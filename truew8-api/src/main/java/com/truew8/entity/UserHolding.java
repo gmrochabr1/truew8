@@ -24,12 +24,12 @@ import java.util.UUID;
     name = "user_holdings",
     uniqueConstraints = {
         @UniqueConstraint(
-            name = "unique_user_asset_brokerage",
-            columnNames = {"user_id", "ticker", "brokerage"}
+            name = "unique_asset_in_portfolio",
+            columnNames = {"portfolio_id", "ticker", "brokerage"}
         )
     },
     indexes = {
-        @Index(name = "idx_user_holdings_user_id", columnList = "user_id"),
+        @Index(name = "idx_user_holdings_portfolio_id", columnList = "portfolio_id"),
         @Index(name = "idx_user_holdings_ticker", columnList = "ticker")
     }
 )
@@ -40,8 +40,8 @@ public class UserHolding {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "portfolio_id", nullable = false)
+    private Portfolio portfolio;
 
     @Column(nullable = false, length = 20)
     private String ticker;
@@ -99,12 +99,12 @@ public class UserHolding {
         this.id = id;
     }
 
-    public User getUser() {
-        return user;
+    public Portfolio getPortfolio() {
+        return portfolio;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setPortfolio(Portfolio portfolio) {
+        this.portfolio = portfolio;
     }
 
     public String getTicker() {
