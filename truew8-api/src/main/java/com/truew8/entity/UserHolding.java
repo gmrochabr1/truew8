@@ -13,7 +13,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Index;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -21,12 +20,6 @@ import java.util.UUID;
 @Entity
 @Table(
     name = "user_holdings",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "unique_asset_in_portfolio",
-            columnNames = {"portfolio_id", "ticker", "brokerage"}
-        )
-    },
     indexes = {
         @Index(name = "idx_user_holdings_portfolio_id", columnList = "portfolio_id"),
         @Index(name = "idx_user_holdings_ticker", columnList = "ticker")
@@ -42,10 +35,10 @@ public class UserHolding {
     @JoinColumn(name = "portfolio_id", nullable = false)
     private Portfolio portfolio;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String ticker;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String brokerage;
 
     @Enumerated(EnumType.STRING)
