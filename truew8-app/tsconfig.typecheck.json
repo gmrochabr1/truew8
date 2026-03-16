@@ -1,6 +1,31 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "expo-router/src/*": [
+        "./node_modules/expo-router/build/*"
+      ],
+      "@/*": [
+        "./*"
+      ],
+      "expo-asset": [
+        "src/types/expo-asset-stub.d.ts"
+      ],
+      "expo-asset/*": [
+        "src/types/expo-asset-stub.d.ts"
+      ],
+      "expo-modules-core": [
+        "src/types/expo-modules-core-stub.d.ts"
+      ],
+      "expo-modules-core/*": [
+        "src/types/expo-modules-core-stub.d.ts"
+      ]
+    }
+  },
   "include": [
+    "src/**/*.d.ts",
     "src/components/**/*.ts",
     "src/services/**/*.ts",
     "src/store/**/*.ts",

@@ -1,19 +1,59 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
+import { VaultGuard } from '@/src/components/security/VaultGuard';
 import { AuthProvider } from '@/src/store/AuthContext';
+import { useAuth } from '@/src/store/AuthContext';
+import { VaultProvider } from '@/src/store/VaultContext';
+
+function ProtectedAppShell() {
+  const { email, isAuthenticated } = useAuth();
+
+  if (isAuthenticated && email) {
+    return (
+      <VaultGuard email={email}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="portfolio/[id]"
+            options={{
+              presentation: 'transparentModal',
+              animation: 'slide_from_right',
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
+          />
+        </Stack>
+      </VaultGuard>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen
+        name="portfolio/[id]"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
+      />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="portfolio/[id]" options={{ title: 'Carteira' }} />
-        <Stack.Screen name="portfolio/[id]/rebalance" options={{ title: 'Novo aporte' }} />
-      </Stack>
+      <VaultProvider>
+        <ProtectedAppShell />
+      </VaultProvider>
     </AuthProvider>
   );
 }

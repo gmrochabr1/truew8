@@ -2,7 +2,6 @@ package com.truew8.dto;
 
 import com.truew8.entity.AssetType;
 import com.truew8.entity.Market;
-import java.math.BigDecimal;
 import java.util.UUID;
 
 public record UserHoldingDTO(
@@ -12,8 +11,8 @@ public record UserHoldingDTO(
         String brokerage,
         Market market,
         AssetType assetType,
-        BigDecimal quantity,
-        BigDecimal averagePrice,
+        String quantity,
+        String averagePrice,
         boolean isLocked
 ) {
 }

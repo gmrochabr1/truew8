@@ -1,4 +1,23 @@
 import { apiClient } from '@/src/services/api';
+import { decryptVaultValue, encryptVaultValue } from '@/src/services/cryptoService';
+
+let vaultKeyGetter: () => string | null = () => null;
+
+export function setPortfolioVaultKeyGetter(getter: () => string | null): void {
+  vaultKeyGetter = getter;
+}
+
+type HoldingCipherDTO = {
+  id: string;
+  portfolioId?: string | null;
+  ticker: string;
+  brokerage: string;
+  market?: string;
+  assetType?: string;
+  quantity: string;
+  averagePrice: string;
+  isLocked: boolean;
+};
 
 export type UserHolding = {
   id: string;
@@ -39,23 +58,60 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function normalizeHolding(payload: any): UserHolding {
+async function normalizeHolding(payload: HoldingCipherDTO): Promise<UserHolding> {
+  const rawKey = vaultKeyGetter();
+  if (!rawKey) {
+    throw new Error('Cofre bloqueado. Desbloqueie o PIN para acessar holdings.');
+  }
+
+  const [ticker, brokerage, quantityRaw, averagePriceRaw] = await Promise.all([
+    decryptVaultValue(String(payload.ticker ?? ''), rawKey),
+    decryptVaultValue(String(payload.brokerage ?? ''), rawKey),
+    decryptVaultValue(String(payload.quantity ?? ''), rawKey),
+    decryptVaultValue(String(payload.averagePrice ?? ''), rawKey),
+  ]);
+
   return {
     id: String(payload.id),
     portfolioId: payload.portfolioId ? String(payload.portfolioId) : null,
-    ticker: String(payload.ticker ?? ''),
-    brokerage: String(payload.brokerage ?? 'Sem corretora'),
+    ticker: String(ticker ?? ''),
+    brokerage: String(brokerage ?? 'Sem corretora'),
     market: payload.market ? String(payload.market) : undefined,
     assetType: payload.assetType ? String(payload.assetType) : undefined,
-    quantity: toNumber(payload.quantity),
-    averagePrice: toNumber(payload.averagePrice),
+    quantity: toNumber(quantityRaw),
+    averagePrice: toNumber(averagePriceRaw),
     isLocked: Boolean(payload.isLocked),
   };
 }
 
 export async function getPortfolios(): Promise<PortfolioSummary[]> {
   const { data } = await apiClient.get<PortfolioSummary[]>('/portfolio');
-  return data;
+  const normalized = (data ?? []).map((item) => ({
+    id: String(item.id),
+    name: String(item.name ?? ''),
+    description: item.description ?? null,
+    holdingsCount: toNumber(item.holdingsCount),
+    totalInvested: toNumber(item.totalInvested),
+  }));
+
+  const enriched = await Promise.all(
+    normalized.map(async (portfolio) => {
+      try {
+        const holdings = await getPortfolioHoldings(portfolio.id);
+        const totalInvested = holdings.reduce((sum, holding) => sum + holding.quantity * holding.averagePrice, 0);
+        return {
+          ...portfolio,
+          holdingsCount: holdings.length,
+          totalInvested,
+        };
+      } catch {
+        // Keep API fallback values if holdings fetch/decrypt fails for this portfolio.
+        return portfolio;
+      }
+    }),
+  );
+
+  return enriched;
 }
 
 export async function createPortfolio(input: CreatePortfolioInput = {}): Promise<PortfolioSummary> {
@@ -67,20 +123,36 @@ export async function createPortfolio(input: CreatePortfolioInput = {}): Promise
 }
 
 export async function getPortfolioHoldings(portfolioId: string): Promise<UserHolding[]> {
-  const { data } = await apiClient.get<any[]>(`/portfolio/${portfolioId}/holdings`);
-  return (data ?? []).map(normalizeHolding);
+  const { data } = await apiClient.get<HoldingCipherDTO[]>(`/portfolio/${portfolioId}/holdings`);
+  const normalized = await Promise.all((data ?? []).map(normalizeHolding));
+  return normalized;
 }
 
 export async function addHoldingManual(portfolioId: string, input: AddHoldingInput): Promise<UserHolding> {
-  const payload = {
-    ticker: input.ticker.trim().toUpperCase(),
-    brokerage: input.brokerage.trim(),
-    quantity: input.quantity,
-    averagePrice: input.averagePrice,
+  const rawKey = vaultKeyGetter();
+  if (!rawKey) {
+    throw new Error('Cofre bloqueado. Desbloqueie o PIN para adicionar ativos.');
+  }
+
+  const normalizedTicker = input.ticker.trim().toUpperCase();
+  const normalizedBrokerage = input.brokerage.trim();
+
+  const [tickerCipher, brokerageCipher, quantityCipher, averagePriceCipher] = await Promise.all([
+    encryptVaultValue(normalizedTicker, rawKey),
+    encryptVaultValue(normalizedBrokerage, rawKey),
+    encryptVaultValue(String(input.quantity), rawKey),
+    encryptVaultValue(String(input.averagePrice), rawKey),
+  ]);
+
+  const payload: Omit<HoldingCipherDTO, 'id' | 'portfolioId' | 'isLocked'> & { market?: AddHoldingInput['market']; assetType?: AddHoldingInput['assetType'] } = {
+    ticker: tickerCipher,
+    brokerage: brokerageCipher,
+    quantity: quantityCipher,
+    averagePrice: averagePriceCipher,
     market: input.market,
     assetType: input.assetType,
   };
 
-  const { data } = await apiClient.post<any>(`/portfolio/${portfolioId}/holdings`, payload);
+  const { data } = await apiClient.post<HoldingCipherDTO>(`/portfolio/${portfolioId}/holdings`, payload);
   return normalizeHolding(data);
 }

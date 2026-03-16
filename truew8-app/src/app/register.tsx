@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
 import { DSButton } from '@/src/components/common/DSButton';
@@ -56,36 +56,42 @@ export default function RegisterScreen() {
       <View style={styles.bandTop} />
       <View style={styles.bandBottom} />
 
-      <View style={styles.card}>
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>TRUEW8</Text>
+      <View style={styles.contentWrap}>
+        <View style={styles.card}>
+          <View style={styles.logoPlaceholder}>
+            <Image
+              source={require('../../assets/images/TrueW8-Logo-No-Background.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+
+          <Text style={styles.title}>{t('auth.registerTitle')}</Text>
+
+          <DSInput
+            label={t('auth.email')}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            testID="register-email-input"
+          />
+          <DSInput
+            label={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            testID="register-password-input"
+          />
+
+          <DSButton title={t('auth.register')} onPress={onSubmit} testID="register-submit-button" />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable onPress={() => router.push('/login')} testID="go-to-login-link">
+            <Text style={styles.link}>{t('auth.haveAccount')}</Text>
+          </Pressable>
         </View>
-
-        <Text style={styles.title}>{t('auth.registerTitle')}</Text>
-
-        <DSInput
-          label={t('auth.email')}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          testID="register-email-input"
-        />
-        <DSInput
-          label={t('auth.password')}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          testID="register-password-input"
-        />
-
-        <DSButton title={t('auth.register')} onPress={onSubmit} testID="register-submit-button" />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable onPress={() => router.push('/login')} testID="go-to-login-link">
-          <Text style={styles.link}>{t('auth.haveAccount')}</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -99,6 +105,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
     overflow: 'hidden',
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 1024,
+    alignItems: 'center',
   },
   bandTop: {
     position: 'absolute',
@@ -134,17 +145,19 @@ const styles = StyleSheet.create({
   },
   logoPlaceholder: {
     alignSelf: 'center',
-    borderRadius: 999,
-    backgroundColor: '#EAF1FE',
+    width: '100%',
+    maxWidth: 280,
+    borderRadius: 18,
+    backgroundColor: '#F7FAFF',
     borderWidth: 1,
-    borderColor: '#C9D8F1',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    borderColor: '#D6E0EF',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
   },
-  logoText: {
-    color: theme.colors.primary,
-    fontWeight: '900',
-    letterSpacing: 1,
+  logoImage: {
+    width: '100%',
+    height: 86,
   },
   title: {
     fontSize: 30,

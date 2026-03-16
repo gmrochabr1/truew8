@@ -34,12 +34,8 @@ public class RebalanceEngineService {
         this.userHoldingRepository = userHoldingRepository;
     }
 
-    public RebalanceResponseDTO calculateRebalance(
-            UUID portfolioId,
-            BigDecimal newDeposit,
-            List<TargetAllocationDTO> targets,
-            UserPreference preferences
-    ) {
+    public RebalanceResponseDTO calculateRebalance(UUID portfolioId, BigDecimal newDeposit,
+            List<TargetAllocationDTO> targets, UserPreference preferences) {
         List<UserHolding> holdings = userHoldingRepository.findByPortfolioId(portfolioId);
 
         Set<String> lockedTickers = collectLockedTickers(holdings);
@@ -49,24 +45,21 @@ public class RebalanceEngineService {
         BigDecimal tolerance = resolveTolerance(preferences);
         boolean allowSells = isAllowSells(preferences);
 
-        BigDecimal unlockedPortfolioValue = calculateUnlockedPortfolioValue(unlockedByTicker.values());
+        BigDecimal unlockedPortfolioValue =
+                calculateUnlockedPortfolioValue(unlockedByTicker.values());
         BigDecimal rebalanceBaseValue = unlockedPortfolioValue.add(sanitizedDeposit);
 
-        List<TargetComputation> computations = buildTargetComputations(
-                targets,
-                lockedTickers,
-                unlockedByTicker,
-                rebalanceBaseValue,
-                allowSells,
-                tolerance
-        );
+        List<TargetComputation> computations = buildTargetComputations(targets, lockedTickers,
+                unlockedByTicker, rebalanceBaseValue, allowSells, tolerance);
 
         BigDecimal totalBuyNeed = totalBuyNeed(computations);
-        BigDecimal availableForBuys = allowSells ? BigDecimal.ZERO : sanitizedDeposit.min(totalBuyNeed);
+        BigDecimal availableForBuys =
+                allowSells ? BigDecimal.ZERO : sanitizedDeposit.min(totalBuyNeed);
 
         List<OrderActionDTO> orders = new ArrayList<>();
         for (TargetComputation computation : computations) {
-            orders.addAll(toOrders(computation, allowSells, availableForBuys, totalBuyNeed, tolerance));
+            orders.addAll(
+                    toOrders(computation, allowSells, availableForBuys, totalBuyNeed, tolerance));
         }
 
         return new RebalanceResponseDTO(orders);
@@ -93,14 +86,9 @@ public class RebalanceEngineService {
         return lockedTickers;
     }
 
-    private List<TargetComputation> buildTargetComputations(
-            List<TargetAllocationDTO> targets,
-            Set<String> lockedTickers,
-            Map<String, UserHolding> unlockedByTicker,
-            BigDecimal rebalanceBaseValue,
-            boolean allowSells,
-            BigDecimal tolerance
-    ) {
+    private List<TargetComputation> buildTargetComputations(List<TargetAllocationDTO> targets,
+            Set<String> lockedTickers, Map<String, UserHolding> unlockedByTicker,
+            BigDecimal rebalanceBaseValue, boolean allowSells, BigDecimal tolerance) {
         List<TargetComputation> computations = new ArrayList<>();
         if (targets == null) {
             return computations;
@@ -119,27 +107,16 @@ public class RebalanceEngineService {
 
             TradeAction plannedAction = resolveAction(rawDifference, allowSells, tolerance);
 
-            computations.add(new TargetComputation(
-                    ticker,
-                    resolveBrokerage(target, currentHolding),
-                    resolvePrice(target, currentHolding),
-                    resolveMarket(target, currentHolding),
-                    resolveAssetType(target, currentHolding),
-                    rawDifference,
-                    plannedAction
-            ));
+            computations.add(new TargetComputation(ticker, resolveBrokerage(target, currentHolding),
+                    resolvePrice(target, currentHolding), resolveMarket(target, currentHolding),
+                    resolveAssetType(target, currentHolding), rawDifference, plannedAction));
         }
 
         return computations;
     }
 
-    private List<OrderActionDTO> toOrders(
-            TargetComputation computation,
-            boolean allowSells,
-            BigDecimal availableForBuys,
-            BigDecimal totalBuyNeed,
-            BigDecimal tolerance
-    ) {
+    private List<OrderActionDTO> toOrders(TargetComputation computation, boolean allowSells,
+            BigDecimal availableForBuys, BigDecimal totalBuyNeed, BigDecimal tolerance) {
         if (computation.action == TradeAction.HOLD) {
             return List.of(holdOrder(computation.ticker, computation.brokerage));
         }
@@ -147,7 +124,8 @@ public class RebalanceEngineService {
         BigDecimal orderDifference = computation.difference;
 
         if (!allowSells && computation.action == TradeAction.BUY) {
-            orderDifference = proportionalBuyDifference(orderDifference, availableForBuys, totalBuyNeed);
+            orderDifference =
+                    proportionalBuyDifference(orderDifference, availableForBuys, totalBuyNeed);
             if (orderDifference.abs().compareTo(tolerance) < 0) {
                 return List.of(holdOrder(computation.ticker, computation.brokerage));
             }
@@ -160,22 +138,24 @@ public class RebalanceEngineService {
         return buildOrdersForDifference(computation, orderDifference);
     }
 
-    private BigDecimal proportionalBuyDifference(BigDecimal difference, BigDecimal availableForBuys, BigDecimal totalBuyNeed) {
-        if (totalBuyNeed.compareTo(BigDecimal.ZERO) <= 0 || availableForBuys.compareTo(BigDecimal.ZERO) <= 0) {
+    private BigDecimal proportionalBuyDifference(BigDecimal difference, BigDecimal availableForBuys,
+            BigDecimal totalBuyNeed) {
+        if (totalBuyNeed.compareTo(BigDecimal.ZERO) <= 0
+                || availableForBuys.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO;
         }
 
-        return difference
-                .multiply(availableForBuys)
-                .divide(totalBuyNeed, 8, RoundingMode.DOWN);
+        return difference.multiply(availableForBuys).divide(totalBuyNeed, 8, RoundingMode.DOWN);
     }
 
-    private List<OrderActionDTO> buildOrdersForDifference(TargetComputation computation, BigDecimal difference) {
+    private List<OrderActionDTO> buildOrdersForDifference(TargetComputation computation,
+            BigDecimal difference) {
         if (computation.price.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of(holdOrder(computation.ticker, computation.brokerage));
         }
 
-        TradeAction action = difference.compareTo(BigDecimal.ZERO) > 0 ? TradeAction.BUY : TradeAction.SELL;
+        TradeAction action =
+                difference.compareTo(BigDecimal.ZERO) > 0 ? TradeAction.BUY : TradeAction.SELL;
         BigDecimal absoluteDiff = difference.abs();
 
         if (isB3StandardLot(computation.market, computation.assetType)) {
@@ -185,7 +165,8 @@ public class RebalanceEngineService {
         return buildExactQuantityOrder(computation, action, absoluteDiff);
     }
 
-    private List<OrderActionDTO> buildB3Orders(TargetComputation computation, TradeAction action, BigDecimal absoluteDiff) {
+    private List<OrderActionDTO> buildB3Orders(TargetComputation computation, TradeAction action,
+            BigDecimal absoluteDiff) {
         BigDecimal rawQuantity = absoluteDiff.divide(computation.price, 8, RoundingMode.DOWN);
         BigDecimal integerQuantity = rawQuantity.setScale(0, RoundingMode.DOWN);
 
@@ -193,17 +174,18 @@ public class RebalanceEngineService {
             return List.of(holdOrder(computation.ticker, computation.brokerage));
         }
 
-        BigDecimal standardQuantity = integerQuantity
-                .divide(HUNDRED, 0, RoundingMode.DOWN)
-                .multiply(HUNDRED);
+        BigDecimal standardQuantity =
+                integerQuantity.divide(HUNDRED, 0, RoundingMode.DOWN).multiply(HUNDRED);
         BigDecimal fractionalQuantity = integerQuantity.remainder(HUNDRED);
 
         List<OrderActionDTO> orders = new ArrayList<>();
         if (standardQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            orders.add(order(action, computation.ticker, standardQuantity, computation.price, computation.brokerage));
+            orders.add(order(action, computation.ticker, standardQuantity, computation.price,
+                    computation.brokerage));
         }
         if (fractionalQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            orders.add(order(action, fractionalTicker(computation.ticker), fractionalQuantity, computation.price, computation.brokerage));
+            orders.add(order(action, fractionalTicker(computation.ticker), fractionalQuantity,
+                    computation.price, computation.brokerage));
         }
 
         if (orders.isEmpty()) {
@@ -212,15 +194,18 @@ public class RebalanceEngineService {
         return orders;
     }
 
-    private List<OrderActionDTO> buildExactQuantityOrder(TargetComputation computation, TradeAction action, BigDecimal absoluteDiff) {
+    private List<OrderActionDTO> buildExactQuantityOrder(TargetComputation computation,
+            TradeAction action, BigDecimal absoluteDiff) {
         int quantityScale = quantityScaleFor(computation.assetType, computation.market);
-        BigDecimal quantity = absoluteDiff.divide(computation.price, quantityScale, RoundingMode.DOWN);
+        BigDecimal quantity =
+                absoluteDiff.divide(computation.price, quantityScale, RoundingMode.DOWN);
 
         if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of(holdOrder(computation.ticker, computation.brokerage));
         }
 
-        return List.of(order(action, computation.ticker, quantity, computation.price, computation.brokerage));
+        return List.of(order(action, computation.ticker, quantity, computation.price,
+                computation.brokerage));
     }
 
     private BigDecimal totalBuyNeed(List<TargetComputation> computations) {
@@ -233,7 +218,8 @@ public class RebalanceEngineService {
         return total;
     }
 
-    private TradeAction resolveAction(BigDecimal difference, boolean allowSells, BigDecimal tolerance) {
+    private TradeAction resolveAction(BigDecimal difference, boolean allowSells,
+            BigDecimal tolerance) {
         if (difference.abs().compareTo(tolerance) < 0) {
             return TradeAction.HOLD;
         }
@@ -258,7 +244,9 @@ public class RebalanceEngineService {
         if (holding == null || holding.getQuantity() == null || holding.getAveragePrice() == null) {
             return BigDecimal.ZERO;
         }
-        return holding.getQuantity().multiply(holding.getAveragePrice());
+        BigDecimal quantity = parseHoldingDecimal(holding.getQuantity());
+        BigDecimal averagePrice = parseHoldingDecimal(holding.getAveragePrice());
+        return quantity.multiply(averagePrice);
     }
 
     private String resolveBrokerage(TargetAllocationDTO target, UserHolding holding) {
@@ -275,10 +263,26 @@ public class RebalanceEngineService {
         if (target.quotePrice() != null && target.quotePrice().compareTo(BigDecimal.ZERO) > 0) {
             return target.quotePrice();
         }
-        if (holding != null && holding.getAveragePrice() != null && holding.getAveragePrice().compareTo(BigDecimal.ZERO) > 0) {
-            return holding.getAveragePrice();
+        if (holding != null && holding.getAveragePrice() != null) {
+            BigDecimal holdingPrice = parseHoldingDecimal(holding.getAveragePrice());
+            if (holdingPrice.compareTo(BigDecimal.ZERO) > 0) {
+                return holdingPrice;
+            }
         }
         return BigDecimal.ZERO;
+    }
+
+    private BigDecimal parseHoldingDecimal(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+
+        try {
+            return new BigDecimal(raw.trim());
+        } catch (NumberFormatException ignored) {
+            // Ciphertext or malformed legacy value must not break rebalance execution.
+            return BigDecimal.ZERO;
+        }
     }
 
     private Market resolveMarket(TargetAllocationDTO target, UserHolding holding) {
@@ -314,17 +318,14 @@ public class RebalanceEngineService {
     }
 
     private OrderActionDTO holdOrder(String ticker, String brokerage) {
-        return new OrderActionDTO(
-                TradeAction.HOLD,
-                ticker,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
-                brokerage
-        );
+        return new OrderActionDTO(TradeAction.HOLD, ticker, BigDecimal.ZERO,
+                BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP), brokerage);
     }
 
-    private OrderActionDTO order(TradeAction action, String ticker, BigDecimal quantity, BigDecimal price, String brokerage) {
-        BigDecimal estimatedValue = quantity.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+    private OrderActionDTO order(TradeAction action, String ticker, BigDecimal quantity,
+            BigDecimal price, String brokerage) {
+        BigDecimal estimatedValue =
+                quantity.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
         return new OrderActionDTO(action, ticker, quantity, estimatedValue, brokerage);
     }
 
@@ -362,15 +363,8 @@ public class RebalanceEngineService {
         private final BigDecimal difference;
         private final TradeAction action;
 
-        private TargetComputation(
-                String ticker,
-                String brokerage,
-                BigDecimal price,
-                Market market,
-                AssetType assetType,
-                BigDecimal difference,
-                TradeAction action
-        ) {
+        private TargetComputation(String ticker, String brokerage, BigDecimal price, Market market,
+                AssetType assetType, BigDecimal difference, TradeAction action) {
             this.ticker = Objects.requireNonNullElse(ticker, "");
             this.brokerage = brokerage;
             this.price = Objects.requireNonNullElse(price, BigDecimal.ZERO);

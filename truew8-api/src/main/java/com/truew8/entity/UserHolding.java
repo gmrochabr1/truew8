@@ -15,7 +15,6 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Index;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -57,11 +56,11 @@ public class UserHolding {
     @Column(name = "asset_type", nullable = false, length = 50)
     private AssetType assetType;
 
-    @Column(nullable = false, precision = 18, scale = 8)
-    private BigDecimal quantity;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String quantity;
 
-    @Column(name = "average_price", nullable = false, precision = 18, scale = 4)
-    private BigDecimal averagePrice;
+    @Column(name = "average_price", nullable = false, columnDefinition = "TEXT")
+    private String averagePrice;
 
     @Column(name = "is_locked", nullable = false)
     private Boolean isLocked;
@@ -139,19 +138,19 @@ public class UserHolding {
         this.assetType = assetType;
     }
 
-    public BigDecimal getQuantity() {
+    public String getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(BigDecimal quantity) {
+    public void setQuantity(String quantity) {
         this.quantity = quantity;
     }
 
-    public BigDecimal getAveragePrice() {
+    public String getAveragePrice() {
         return averagePrice;
     }
 
-    public void setAveragePrice(BigDecimal averagePrice) {
+    public void setAveragePrice(String averagePrice) {
         this.averagePrice = averagePrice;
     }
 

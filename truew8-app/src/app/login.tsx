@@ -1,25 +1,36 @@
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import {
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
-import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
-import { DSButton } from '@/src/components/common/DSButton';
-import { DSInput } from '@/src/components/common/DSInput';
-import { t } from '@/src/i18n';
-import { getAuthErrorMessageKey } from '@/src/services/authErrors';
-import { useAuth } from '@/src/store/AuthContext';
-import { theme } from '@/src/theme/tokens';
+import { AuthLoadingScreen } from "@/src/components/common/AuthLoadingScreen";
+import { DSButton } from "@/src/components/common/DSButton";
+import { DSInput } from "@/src/components/common/DSInput";
+import { t } from "@/src/i18n";
+import { getAuthErrorMessageKey } from "@/src/services/authErrors";
+import { useAuth } from "@/src/store/AuthContext";
+import { theme } from "@/src/theme/tokens";
 
 export default function LoginScreen() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const { width: viewportWidth } = useWindowDimensions();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const isCompact = viewportWidth < 640;
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/dashboard' as never);
+      router.replace("/dashboard" as never);
     }
   }, [isAuthenticated, router]);
 
@@ -32,55 +43,73 @@ export default function LoginScreen() {
   }
 
   const onSubmit = async () => {
-    setError('');
+    setError("");
     if (!email.trim() || !password) {
-      setError(t('auth.errorInvalidData'));
+      setError(t("auth.errorInvalidData"));
       return;
     }
 
     try {
       await login(email, password);
-      router.replace('/dashboard' as never);
+      router.replace("/dashboard" as never);
     } catch (submitError) {
-      setError(t(getAuthErrorMessageKey(submitError, 'login')));
+      setError(t(getAuthErrorMessageKey(submitError, "login")));
     }
   };
 
   return (
     <View style={styles.screen}>
-      <View style={styles.backgroundGlowTop} />
-      <View style={styles.backgroundGlowBottom} />
+      <View style={styles.backgroundBase} />
+      <View style={[styles.orbit, styles.orbitTopLeft]} />
+      <View style={[styles.orbit, styles.orbitBottomRight]} />
+      <View style={styles.gridBand} />
+      <Image
+        source={require("../../assets/images/TrueW8-Symbol-No-Background.png")}
+        style={styles.backgroundSymbol}
+        resizeMode="contain"
+      />
 
-      <View style={styles.card}>
-        <View style={styles.logoPlaceholder}>
-          <Text style={styles.logoText}>TRUEW8</Text>
+      <View style={styles.contentWrap}>
+        <View style={styles.card}>
+          <View style={styles.logoPanel}>
+            <Image
+              source={require("../../assets/images/TrueW8-Logo-No-Background.png")}
+              style={[styles.logoImage, isCompact ? styles.logoImageCompact : null]}
+              resizeMode="contain"
+            />
+          </View>
+
+          <DSInput
+            label={t("auth.email")}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            testID="login-email-input"
+          />
+          <DSInput
+            label={t("auth.password")}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            testID="login-password-input"
+          />
+
+          <DSButton
+            title={t("auth.login")}
+            onPress={onSubmit}
+            testID="login-submit-button"
+          />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            onPress={() => router.push("/register")}
+            testID="go-to-register-link"
+          >
+            <Text style={styles.link}>{t("auth.noAccount")}</Text>
+          </Pressable>
         </View>
-
-        <Text style={styles.title}>{t('auth.loginTitle')}</Text>
-
-        <DSInput
-          label={t('auth.email')}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          testID="login-email-input"
-        />
-        <DSInput
-          label={t('auth.password')}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          testID="login-password-input"
-        />
-
-        <DSButton title={t('auth.login')} onPress={onSubmit} testID="login-submit-button" />
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable onPress={() => router.push('/register')} testID="go-to-register-link">
-          <Text style={styles.link}>{t('auth.noAccount')}</Text>
-        </Pressable>
       </View>
     </View>
   );
@@ -89,32 +118,66 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
-  backgroundGlowTop: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: '#DCE8FA',
+  contentWrap: {
+    width: "100%",
+    maxWidth: 1024,
+    alignItems: "center",
+  },
+  backgroundBase: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#EAF1FD",
+  },
+  orbit: {
+    position: "absolute",
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  orbitTopLeft: {
+    width: 360,
+    height: 360,
     top: -90,
-    left: -70,
+    left: -120,
+    backgroundColor: "#D5E3FA",
+    borderColor: "#B4C8E9",
   },
-  backgroundGlowBottom: {
-    position: 'absolute',
+  orbitBottomRight: {
+    width: 420,
+    height: 420,
+    bottom: -120,
+    right: -140,
+    backgroundColor: "#E2F2E9",
+    borderColor: "#BBDCCB",
+  },
+  gridBand: {
+    position: "absolute",
+    width: 680,
+    height: 240,
+    top: "56%",
+    left: "50%",
+    transform: [{ translateX: -340 }, { rotate: "-8deg" }],
+    backgroundColor: "#F6FAFF",
+    borderWidth: 1,
+    borderColor: "#D8E4F5",
+    opacity: 0.85,
+  },
+  backgroundSymbol: {
+    position: "absolute",
     width: 320,
     height: 320,
-    borderRadius: 160,
-    backgroundColor: '#F8EBC8',
-    bottom: -120,
-    right: -100,
+    top: "50%",
+    left: "50%",
+    marginLeft: -160,
+    marginTop: -200,
+    opacity: 0.08,
   },
   card: {
-    width: '100%',
+    width: "100%",
     maxWidth: 460,
     gap: theme.spacing.md,
     borderRadius: 22,
@@ -123,38 +186,47 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     padding: theme.spacing.lg,
     ...Platform.select({
-      web: { boxShadow: '0 18px 44px rgba(12, 39, 77, 0.14)' as never },
+      web: { boxShadow: "0 18px 44px rgba(12, 39, 77, 0.14)" as never },
       default: {},
     }),
   },
-  logoPlaceholder: {
-    alignSelf: 'center',
-    borderRadius: 999,
-    backgroundColor: '#EAF1FE',
+  logoPanel: {
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 280,
+    borderRadius: 18,
+    backgroundColor: "#F5F9FF",
     borderWidth: 1,
-    borderColor: '#C9D8F1',
-    paddingHorizontal: 20,
+    borderColor: "#C7D6EC",
+    paddingHorizontal: 14,
     paddingVertical: 10,
+    alignItems: "center",
+    ...Platform.select({
+      web: { boxShadow: "0 10px 24px rgba(14, 40, 78, 0.12)" as never },
+      default: {},
+    }),
   },
-  logoText: {
-    color: theme.colors.primary,
-    fontWeight: '900',
-    letterSpacing: 1,
+  logoImage: {
+    width: "100%",
+    height: 120,
+  },
+  logoImageCompact: {
+    height: 98,
   },
   title: {
     fontSize: 30,
     color: theme.colors.textPrimary,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
+    textAlign: "center",
   },
   link: {
     color: theme.colors.primary,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
   error: {
     color: theme.colors.danger,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
 });

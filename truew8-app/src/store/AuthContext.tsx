@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { getCurrentSession, login as loginRequest, logout as logoutRequest, register as registerRequest } from '@/src/services/auth';
 import { clearSession, loadSession, saveSession } from '@/src/services/authStorage';
+import { clearActiveVaultKey } from '@/src/services/cryptoService';
 import { setAuthTokenGetter, setUnauthorizedHandler } from '@/src/services/api';
 
 type AuthContextValue = {
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUnauthorizedHandler(() => {
       setToken(null);
       setEmail(null);
+      clearActiveVaultKey();
       void clearSession();
     });
 
@@ -93,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setToken(null);
     setEmail(null);
+    clearActiveVaultKey();
     await clearSession();
   };
 

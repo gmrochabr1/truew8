@@ -13,10 +13,8 @@ import com.truew8.repository.PortfolioRepository;
 import com.truew8.repository.UserHoldingRepository;
 import com.truew8.repository.UserRepository;
 import jakarta.validation.Valid;
-import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -118,42 +116,15 @@ public class PortfolioController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found");
         }
 
-        String normalizedTicker = request.ticker().trim().toUpperCase(Locale.ROOT);
-        String normalizedBrokerage = request.brokerage().trim();
-
-        UserHolding holding = userHoldingRepository
-                .findByPortfolioIdAndTickerAndBrokerage(portfolioId, normalizedTicker, normalizedBrokerage)
-                .orElseGet(UserHolding::new);
-
-        boolean isNewHolding = holding.getId() == null;
-        if (isNewHolding) {
-            holding.setPortfolio(portfolio);
-            holding.setTicker(normalizedTicker);
-            holding.setBrokerage(normalizedBrokerage);
-            holding.setMarket(request.market() != null ? request.market() : Market.B3);
-            holding.setAssetType(request.assetType() != null ? request.assetType() : AssetType.STOCK);
-        }
-
-        if (isNewHolding) {
-            holding.setQuantity(request.quantity());
-            holding.setAveragePrice(request.averagePrice());
-            holding.setIsLocked(false);
-        } else {
-            BigDecimal existingQuantity = holding.getQuantity();
-            BigDecimal existingValue = existingQuantity.multiply(holding.getAveragePrice());
-            BigDecimal incomingValue = request.quantity().multiply(request.averagePrice());
-            BigDecimal nextQuantity = existingQuantity.add(request.quantity());
-
-            if (nextQuantity.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Holding quantity must remain positive");
-            }
-
-            BigDecimal nextAveragePrice = existingValue.add(incomingValue)
-                    .divide(nextQuantity, 8, java.math.RoundingMode.HALF_UP);
-
-            holding.setQuantity(nextQuantity);
-            holding.setAveragePrice(nextAveragePrice);
-        }
+        UserHolding holding = new UserHolding();
+        holding.setPortfolio(portfolio);
+        holding.setTicker(request.ticker().trim());
+        holding.setBrokerage(request.brokerage().trim());
+        holding.setMarket(request.market() != null ? request.market() : Market.B3);
+        holding.setAssetType(request.assetType() != null ? request.assetType() : AssetType.STOCK);
+        holding.setQuantity(request.quantity().trim());
+        holding.setAveragePrice(request.averagePrice().trim());
+        holding.setIsLocked(false);
 
         UserHolding saved = userHoldingRepository.save(holding);
         return ResponseEntity.status(HttpStatus.CREATED).body(toDto(saved));
@@ -194,16 +165,13 @@ public class PortfolioController {
 
     private PortfolioSummaryDTO toPortfolioSummary(Portfolio portfolio) {
         List<UserHolding> holdings = userHoldingRepository.findByPortfolioId(portfolio.getId());
-        BigDecimal totalInvested = holdings.stream()
-                .map(holding -> holding.getQuantity().multiply(holding.getAveragePrice()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new PortfolioSummaryDTO(
                 portfolio.getId(),
                 portfolio.getName(),
                 portfolio.getDescription(),
                 holdings.size(),
-                totalInvested
+            java.math.BigDecimal.ZERO
         );
     }
 

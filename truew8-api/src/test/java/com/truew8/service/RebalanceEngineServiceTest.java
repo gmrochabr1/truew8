@@ -36,58 +36,37 @@ class RebalanceEngineServiceTest {
     void shouldApplyBastterModeWithoutGeneratingSellOrders() {
         UUID portfolioId = UUID.randomUUID();
 
-        UserHolding petr4 = createHolding(
-                portfolioId,
-                "PETR4",
-                "XP",
-                Market.B3,
-                AssetType.STOCK,
-                new BigDecimal("100"),
-                new BigDecimal("10.00"),
-                false
-        );
+        UserHolding petr4 = createHolding(portfolioId, "PETR4", "XP", Market.B3, AssetType.STOCK,
+                new BigDecimal("100"), new BigDecimal("10.00"), false);
 
-        UserHolding mxrf11 = createHolding(
-                portfolioId,
-                "MXRF11",
-                "XP",
-                Market.B3,
-                AssetType.FII,
-                new BigDecimal("10"),
-                new BigDecimal("10.00"),
-                false
-        );
+        UserHolding mxrf11 = createHolding(portfolioId, "MXRF11", "XP", Market.B3, AssetType.FII,
+                new BigDecimal("10"), new BigDecimal("10.00"), false);
 
-        when(userHoldingRepository.findByPortfolioId(portfolioId)).thenReturn(List.of(petr4, mxrf11));
+        when(userHoldingRepository.findByPortfolioId(portfolioId))
+                .thenReturn(List.of(petr4, mxrf11));
 
         UserPreference preferences = new UserPreference();
         preferences.setAllowSells(false);
         preferences.setToleranceValue(new BigDecimal("1.00"));
 
         List<TargetAllocationDTO> targets = List.of(
-                new TargetAllocationDTO("PETR4", new BigDecimal("0.50"), new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP"),
-                new TargetAllocationDTO("MXRF11", new BigDecimal("0.50"), new BigDecimal("10.00"), Market.B3, AssetType.FII, "XP")
-        );
+                new TargetAllocationDTO("PETR4", new BigDecimal("0.50"), new BigDecimal("10.00"),
+                        Market.B3, AssetType.STOCK, "XP"),
+                new TargetAllocationDTO("MXRF11", new BigDecimal("0.50"), new BigDecimal("10.00"),
+                        Market.B3, AssetType.FII, "XP"));
 
-        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
-                portfolioId,
-                new BigDecimal("100.00"),
-                targets,
-                preferences
-        );
+        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(portfolioId,
+                new BigDecimal("100.00"), targets, preferences);
 
-        assertTrue(response.orders().stream().noneMatch(order -> order.action() == TradeAction.SELL));
+        assertTrue(
+                response.orders().stream().noneMatch(order -> order.action() == TradeAction.SELL));
 
         OrderActionDTO petrOrder = response.orders().stream()
-                .filter(order -> "PETR4".equals(order.ticker()))
-                .findFirst()
-                .orElseThrow();
+                .filter(order -> "PETR4".equals(order.ticker())).findFirst().orElseThrow();
         assertEquals(TradeAction.HOLD, petrOrder.action());
 
         OrderActionDTO mxrfOrder = response.orders().stream()
-                .filter(order -> "MXRF11".equals(order.ticker()))
-                .findFirst()
-                .orElseThrow();
+                .filter(order -> "MXRF11".equals(order.ticker())).findFirst().orElseThrow();
         assertEquals(TradeAction.BUY, mxrfOrder.action());
         assertEquals(0, new BigDecimal("10").compareTo(mxrfOrder.quantity()));
         assertEquals("XP", mxrfOrder.brokerage());
@@ -102,30 +81,21 @@ class RebalanceEngineServiceTest {
         preferences.setAllowSells(true);
         preferences.setToleranceValue(new BigDecimal("1.00"));
 
-        List<TargetAllocationDTO> targets = List.of(
-                new TargetAllocationDTO("PETR4", BigDecimal.ONE, new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP")
-        );
+        List<TargetAllocationDTO> targets = List.of(new TargetAllocationDTO("PETR4", BigDecimal.ONE,
+                new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP"));
 
-        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
-                portfolioId,
-                new BigDecimal("1350.00"),
-                targets,
-                preferences
-        );
+        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(portfolioId,
+                new BigDecimal("1350.00"), targets, preferences);
 
         assertEquals(2, response.orders().size());
 
         OrderActionDTO standardOrder = response.orders().stream()
-                .filter(order -> "PETR4".equals(order.ticker()))
-                .findFirst()
-                .orElseThrow();
+                .filter(order -> "PETR4".equals(order.ticker())).findFirst().orElseThrow();
         assertEquals(TradeAction.BUY, standardOrder.action());
         assertEquals(0, new BigDecimal("100").compareTo(standardOrder.quantity()));
 
         OrderActionDTO fractionalOrder = response.orders().stream()
-                .filter(order -> "PETR4F".equals(order.ticker()))
-                .findFirst()
-                .orElseThrow();
+                .filter(order -> "PETR4F".equals(order.ticker())).findFirst().orElseThrow();
         assertEquals(TradeAction.BUY, fractionalOrder.action());
         assertEquals(0, new BigDecimal("35").compareTo(fractionalOrder.quantity()));
     }
@@ -134,43 +104,23 @@ class RebalanceEngineServiceTest {
     void shouldIgnoreLockedAssetsInTotalPortfolioValue() {
         UUID portfolioId = UUID.randomUUID();
 
-        UserHolding vale3Locked = createHolding(
-                portfolioId,
-                "VALE3",
-                "XP",
-                Market.B3,
-                AssetType.STOCK,
-                new BigDecimal("1000"),
-                new BigDecimal("100.00"),
-                true
-        );
-        UserHolding itub4Unlocked = createHolding(
-                portfolioId,
-                "ITUB4",
-                "XP",
-                Market.B3,
-                AssetType.FII,
-                new BigDecimal("10"),
-                new BigDecimal("10.00"),
-                false
-        );
+        UserHolding vale3Locked = createHolding(portfolioId, "VALE3", "XP", Market.B3,
+                AssetType.STOCK, new BigDecimal("1000"), new BigDecimal("100.00"), true);
+        UserHolding itub4Unlocked = createHolding(portfolioId, "ITUB4", "XP", Market.B3,
+                AssetType.FII, new BigDecimal("10"), new BigDecimal("10.00"), false);
 
-        when(userHoldingRepository.findByPortfolioId(portfolioId)).thenReturn(List.of(vale3Locked, itub4Unlocked));
+        when(userHoldingRepository.findByPortfolioId(portfolioId))
+                .thenReturn(List.of(vale3Locked, itub4Unlocked));
 
         UserPreference preferences = new UserPreference();
         preferences.setAllowSells(true);
         preferences.setToleranceValue(new BigDecimal("1.00"));
 
-        List<TargetAllocationDTO> targets = List.of(
-                new TargetAllocationDTO("ITUB4", BigDecimal.ONE, new BigDecimal("10.00"), Market.B3, AssetType.FII, "XP")
-        );
+        List<TargetAllocationDTO> targets = List.of(new TargetAllocationDTO("ITUB4", BigDecimal.ONE,
+                new BigDecimal("10.00"), Market.B3, AssetType.FII, "XP"));
 
-        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
-                portfolioId,
-                new BigDecimal("100.00"),
-                targets,
-                preferences
-        );
+        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(portfolioId,
+                new BigDecimal("100.00"), targets, preferences);
 
         assertEquals(1, response.orders().size());
         OrderActionDTO itubOrder = response.orders().get(0);
@@ -188,16 +138,11 @@ class RebalanceEngineServiceTest {
         preferences.setAllowSells(true);
         preferences.setToleranceValue(new BigDecimal("0.01"));
 
-        List<TargetAllocationDTO> targets = List.of(
-                new TargetAllocationDTO("BTC", BigDecimal.ONE, new BigDecimal("10000.00"), Market.CRYPTO, AssetType.CRYPTO, "Binance")
-        );
+        List<TargetAllocationDTO> targets = List.of(new TargetAllocationDTO("BTC", BigDecimal.ONE,
+                new BigDecimal("10000.00"), Market.CRYPTO, AssetType.CRYPTO, "Binance"));
 
-        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
-                portfolioId,
-                new BigDecimal("15.50"),
-                targets,
-                preferences
-        );
+        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(portfolioId,
+                new BigDecimal("15.50"), targets, preferences);
 
         assertEquals(1, response.orders().size());
         OrderActionDTO btcOrder = response.orders().get(0);
@@ -211,32 +156,19 @@ class RebalanceEngineServiceTest {
     void shouldHoldWhenDifferenceIsBelowTolerance() {
         UUID portfolioId = UUID.randomUUID();
 
-        UserHolding petr4 = createHolding(
-                portfolioId,
-                "PETR4",
-                "XP",
-                Market.B3,
-                AssetType.STOCK,
-                new BigDecimal("8"),
-                new BigDecimal("10.00"),
-                false
-        );
+        UserHolding petr4 = createHolding(portfolioId, "PETR4", "XP", Market.B3, AssetType.STOCK,
+                new BigDecimal("8"), new BigDecimal("10.00"), false);
         when(userHoldingRepository.findByPortfolioId(portfolioId)).thenReturn(List.of(petr4));
 
         UserPreference preferences = new UserPreference();
         preferences.setAllowSells(true);
         preferences.setToleranceValue(new BigDecimal("50.00"));
 
-        List<TargetAllocationDTO> targets = List.of(
-                new TargetAllocationDTO("PETR4", BigDecimal.ONE, new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP")
-        );
+        List<TargetAllocationDTO> targets = List.of(new TargetAllocationDTO("PETR4", BigDecimal.ONE,
+                new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP"));
 
-        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
-                portfolioId,
-                new BigDecimal("20.00"),
-                targets,
-                preferences
-        );
+        RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(portfolioId,
+                new BigDecimal("20.00"), targets, preferences);
 
         assertEquals(1, response.orders().size());
         OrderActionDTO order = response.orders().get(0);
@@ -245,16 +177,47 @@ class RebalanceEngineServiceTest {
         assertEquals(0, BigDecimal.ZERO.compareTo(order.quantity()));
     }
 
-    private UserHolding createHolding(
-            UUID portfolioId,
-            String ticker,
-            String brokerage,
-            Market market,
-            AssetType assetType,
-            BigDecimal quantity,
-            BigDecimal averagePrice,
-            boolean isLocked
-    ) {
+        @Test
+        void shouldGracefullyHandleCiphertextLikeHoldingValues() {
+                UUID portfolioId = UUID.randomUUID();
+
+                Portfolio portfolio = new Portfolio();
+                portfolio.setId(portfolioId);
+
+                UserHolding encryptedHolding = new UserHolding();
+                encryptedHolding.setPortfolio(portfolio);
+                encryptedHolding.setTicker("PETR4");
+                encryptedHolding.setBrokerage("cipher-broker");
+                encryptedHolding.setMarket(Market.B3);
+                encryptedHolding.setAssetType(AssetType.STOCK);
+                encryptedHolding.setQuantity("v1:iv:quantity");
+                encryptedHolding.setAveragePrice("v1:iv:price");
+                encryptedHolding.setIsLocked(false);
+
+                when(userHoldingRepository.findByPortfolioId(portfolioId)).thenReturn(List.of(encryptedHolding));
+
+                UserPreference preferences = new UserPreference();
+                preferences.setAllowSells(true);
+                preferences.setToleranceValue(new BigDecimal("1.00"));
+
+                List<TargetAllocationDTO> targets = List.of(
+                                new TargetAllocationDTO("PETR4", BigDecimal.ONE, new BigDecimal("10.00"), Market.B3, AssetType.STOCK, "XP")
+                );
+
+                RebalanceResponseDTO response = rebalanceEngineService.calculateRebalance(
+                                portfolioId,
+                                new BigDecimal("100.00"),
+                                targets,
+                                preferences
+                );
+
+                assertEquals(1, response.orders().size());
+                assertEquals(TradeAction.BUY, response.orders().get(0).action());
+        }
+
+    private UserHolding createHolding(UUID portfolioId, String ticker, String brokerage,
+            Market market, AssetType assetType, BigDecimal quantity, BigDecimal averagePrice,
+            boolean isLocked) {
         Portfolio portfolio = new Portfolio();
         portfolio.setId(portfolioId);
 
@@ -264,8 +227,8 @@ class RebalanceEngineServiceTest {
         holding.setBrokerage(brokerage);
         holding.setMarket(market);
         holding.setAssetType(assetType);
-        holding.setQuantity(quantity);
-        holding.setAveragePrice(averagePrice);
+        holding.setQuantity(quantity.toPlainString());
+        holding.setAveragePrice(averagePrice.toPlainString());
         holding.setIsLocked(isLocked);
         return holding;
     }

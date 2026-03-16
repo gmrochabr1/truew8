@@ -3838,6 +3838,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-crypto@npm:~55.0.9":
+  version: 55.0.9
+  resolution: "expo-crypto@npm:55.0.9"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/6eff2afa56b1f65c33287f185556c78b6bdeec1387c2841cf6c92218500947bc21085bb2c09d77ee293144ba4139974104500edb5399f85fc15fb0369b16e58f
+  languageName: node
+  linkType: hard
+
 "expo-file-system@npm:~55.0.10":
   version: 55.0.10
   resolution: "expo-file-system@npm:55.0.10"
@@ -3929,6 +3938,17 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/9f19cb4a38337756a7b6508a42e331aa9dcdd564dfaaee437b68e29fece8fc9e1991567a52201a6e79382dd10fe8134207fbbd8b81eeacf51beaf42bc51dc8d3
+  languageName: node
+  linkType: hard
+
+"expo-local-authentication@npm:~55.0.8":
+  version: 55.0.8
+  resolution: "expo-local-authentication@npm:55.0.8"
+  dependencies:
+    invariant: "npm:^2.2.4"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/62dbe33bd0143fdb12cfe2d58b3af9e94e6ba31e44ede55bcc2060da953cb4320b21b6d9b3727375007a75e0bfa877ac200665288869e8e092600467bf63e4d5
   languageName: node
   linkType: hard
 
@@ -7311,9 +7331,11 @@ __metadata:
     axios: "npm:^1.12.2"
     expo: "npm:~55.0.6"
     expo-constants: "npm:~55.0.7"
+    expo-crypto: "npm:~55.0.9"
     expo-font: "npm:~55.0.4"
     expo-image-picker: "npm:^55.0.12"
     expo-linking: "npm:~55.0.7"
+    expo-local-authentication: "npm:~55.0.8"
     expo-router: "npm:~55.0.5"
     expo-secure-store: "npm:~55.0.8"
     expo-splash-screen: "npm:~55.0.10"
