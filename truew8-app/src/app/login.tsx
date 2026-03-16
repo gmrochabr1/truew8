@@ -19,7 +19,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/');
+      router.replace('/dashboard' as never);
     }
   }, [isAuthenticated, router]);
 
@@ -40,7 +40,7 @@ export default function LoginScreen() {
 
     try {
       await login(email, password);
-      router.replace('/');
+      router.replace('/dashboard' as never);
     } catch (submitError) {
       setError(t(getAuthErrorMessageKey(submitError, 'login')));
     }
@@ -48,10 +48,14 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.shapeTop} />
-      <View style={styles.shapeBottom} />
+      <View style={styles.backgroundGlowTop} />
+      <View style={styles.backgroundGlowBottom} />
 
       <View style={styles.card}>
+        <View style={styles.logoPlaceholder}>
+          <Text style={styles.logoText}>TRUEW8</Text>
+        </View>
+
         <Text style={styles.title}>{t('auth.loginTitle')}</Text>
 
         <DSInput
@@ -75,9 +79,7 @@ export default function LoginScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable onPress={() => router.push('/register')} testID="go-to-register-link">
-          <Text style={styles.link}>
-          {t('auth.noAccount')}
-          </Text>
+          <Text style={styles.link}>{t('auth.noAccount')}</Text>
         </Pressable>
       </View>
     </View>
@@ -93,24 +95,57 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     overflow: 'hidden',
   },
+  backgroundGlowTop: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: '#DCE8FA',
+    top: -90,
+    left: -70,
+  },
+  backgroundGlowBottom: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: '#F8EBC8',
+    bottom: -120,
+    right: -100,
+  },
   card: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 460,
     gap: theme.spacing.md,
-    borderRadius: 20,
+    borderRadius: 22,
     backgroundColor: theme.colors.panel,
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: theme.spacing.lg,
     ...Platform.select({
-      web: { boxShadow: '0 14px 40px rgba(20,33,61,0.12)' as never },
+      web: { boxShadow: '0 18px 44px rgba(12, 39, 77, 0.14)' as never },
       default: {},
     }),
+  },
+  logoPlaceholder: {
+    alignSelf: 'center',
+    borderRadius: 999,
+    backgroundColor: '#EAF1FE',
+    borderWidth: 1,
+    borderColor: '#C9D8F1',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  logoText: {
+    color: theme.colors.primary,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   title: {
     fontSize: 30,
     color: theme.colors.textPrimary,
     fontWeight: '800',
+    textAlign: 'center',
   },
   link: {
     color: theme.colors.primary,
@@ -121,23 +156,5 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  shapeTop: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: '#BFE0E5',
-    top: -70,
-    right: -60,
-  },
-  shapeBottom: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: '#F2D9C3',
-    bottom: -90,
-    left: -80,
   },
 });

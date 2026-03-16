@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await registerRequest({ email: rawEmail.trim(), password });
     setToken(response.token ?? null);
     setEmail(response.email);
-    if (!isWeb && response.token) {
+    if (response.token) {
       await saveSession({ token: response.token, email: response.email });
     }
   };
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await loginRequest({ email: rawEmail.trim(), password });
     setToken(response.token ?? null);
     setEmail(response.email);
-    if (!isWeb && response.token) {
+    if (response.token) {
       await saveSession({ token: response.token, email: response.email });
     }
   };

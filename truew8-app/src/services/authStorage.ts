@@ -12,7 +12,9 @@ export type StoredSession = {
 
 export async function saveSession(session: StoredSession): Promise<void> {
   if (isWeb) {
-    // Web sessions are managed by HttpOnly cookies; avoid JS token persistence.
+    const serializedWeb = JSON.stringify(session);
+    globalThis.localStorage?.setItem(SESSION_KEY, serializedWeb);
+    globalThis.sessionStorage?.setItem(SESSION_KEY, serializedWeb);
     return;
   }
   const serialized = JSON.stringify(session);

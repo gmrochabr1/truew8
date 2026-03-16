@@ -1,9 +1,6 @@
 import axios from "axios";
-import { Platform } from 'react-native';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
-const isWeb = Platform.OS === 'web';
-
 let authTokenGetter: () => string | null = () => null;
 let unauthorizedHandler: () => void = () => {};
 
@@ -33,7 +30,7 @@ apiClient.interceptors.request.use((config) => {
     delete config.headers["Content-Type"];
   }
 
-  if (token && !isAuthEndpoint && !isWeb) {
+  if (token && !isAuthEndpoint) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

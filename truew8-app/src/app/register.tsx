@@ -19,7 +19,7 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace('/');
+      router.replace('/dashboard' as never);
     }
   }, [isAuthenticated, router]);
 
@@ -45,7 +45,7 @@ export default function RegisterScreen() {
 
     try {
       await register(email, password);
-      router.replace('/');
+      router.replace('/dashboard' as never);
     } catch (submitError) {
       setError(t(getAuthErrorMessageKey(submitError, 'register')));
     }
@@ -53,9 +53,14 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.diagonal} />
+      <View style={styles.bandTop} />
+      <View style={styles.bandBottom} />
 
       <View style={styles.card}>
+        <View style={styles.logoPlaceholder}>
+          <Text style={styles.logoText}>TRUEW8</Text>
+        </View>
+
         <Text style={styles.title}>{t('auth.registerTitle')}</Text>
 
         <DSInput
@@ -79,9 +84,7 @@ export default function RegisterScreen() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <Pressable onPress={() => router.push('/login')} testID="go-to-login-link">
-          <Text style={styles.link}>
-          {t('auth.haveAccount')}
-          </Text>
+          <Text style={styles.link}>{t('auth.haveAccount')}</Text>
         </Pressable>
       </View>
     </View>
@@ -93,37 +96,61 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F4F7EB',
+    backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
     overflow: 'hidden',
   },
-  diagonal: {
+  bandTop: {
     position: 'absolute',
-    width: 480,
-    height: 480,
-    backgroundColor: '#D6E6C3',
-    transform: [{ rotate: '26deg' }],
-    top: -180,
-    left: -120,
+    width: 500,
+    height: 180,
+    backgroundColor: '#E2EDFF',
+    transform: [{ rotate: '-8deg' }],
+    top: -50,
+    left: -60,
+  },
+  bandBottom: {
+    position: 'absolute',
+    width: 520,
+    height: 180,
+    backgroundColor: '#E0F4EA',
+    transform: [{ rotate: '8deg' }],
+    bottom: -60,
+    right: -80,
   },
   card: {
     width: '100%',
-    maxWidth: 440,
+    maxWidth: 460,
     gap: theme.spacing.md,
-    borderRadius: 20,
+    borderRadius: 22,
     backgroundColor: theme.colors.panel,
     borderWidth: 1,
     borderColor: theme.colors.border,
     padding: theme.spacing.lg,
     ...Platform.select({
-      web: { boxShadow: '0 14px 40px rgba(15,52,96,0.14)' as never },
+      web: { boxShadow: '0 18px 44px rgba(16, 42, 82, 0.15)' as never },
       default: {},
     }),
+  },
+  logoPlaceholder: {
+    alignSelf: 'center',
+    borderRadius: 999,
+    backgroundColor: '#EAF1FE',
+    borderWidth: 1,
+    borderColor: '#C9D8F1',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  logoText: {
+    color: theme.colors.primary,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   title: {
     fontSize: 30,
     color: theme.colors.textPrimary,
     fontWeight: '800',
+    textAlign: 'center',
   },
   link: {
     color: theme.colors.primary,

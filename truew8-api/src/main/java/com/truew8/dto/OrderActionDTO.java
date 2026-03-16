@@ -6,6 +6,11 @@ public record OrderActionDTO(
         TradeAction action,
         String ticker,
         BigDecimal quantity,
-        BigDecimal estimatedValue
+        BigDecimal estimatedValue,
+        String brokerage
 ) {
+
+    public OrderActionDTO(TradeAction action, String ticker, BigDecimal quantity, BigDecimal estimatedValue) {
+        this(action, ticker, quantity, estimatedValue, null);
+    }
 }

@@ -23,6 +23,7 @@ export type RebalanceOrder = {
   ticker: string;
   quantity: number;
   estimatedValue: number;
+  brokerage?: string | null;
 };
 
 export type RebalanceResponse = {
