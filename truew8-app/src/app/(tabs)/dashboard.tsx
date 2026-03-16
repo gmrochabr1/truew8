@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSText } from '@/src/components/common/DSText';
-import { getPortfolios, PortfolioSummary } from '@/src/services/portfolio';
+import { createPortfolio, getPortfolios, PortfolioSummary } from '@/src/services/portfolio';
 import { useAuth } from '@/src/store/AuthContext';
 import { theme } from '@/src/theme/tokens';
 
@@ -20,6 +20,20 @@ export default function DashboardScreen() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [loadingPortfolios, setLoadingPortfolios] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingPortfolio, setCreatingPortfolio] = useState(false);
+  const onCreateFirstPortfolio = async () => {
+    try {
+      setCreatingPortfolio(true);
+      setError(null);
+      const created = await createPortfolio();
+      router.push(`/portfolio/${created.id}` as never);
+    } catch {
+      setError('Nao foi possivel criar a carteira agora.');
+    } finally {
+      setCreatingPortfolio(false);
+    }
+  };
+
 
   const loadPortfolios = useCallback(async () => {
     try {
@@ -82,8 +96,9 @@ export default function DashboardScreen() {
           <View style={styles.emptyWrap}>
             <DSText style={styles.emptyText}>Nenhuma carteira encontrada.</DSText>
             <DSButton
-              title="Criar minha primeira carteira"
-              onPress={() => router.push('/portfolio/default' as never)}
+              title={creatingPortfolio ? 'Criando carteira...' : 'Criar minha primeira carteira'}
+              onPress={() => void onCreateFirstPortfolio()}
+              disabled={creatingPortfolio}
               testID="dashboard-create-first-portfolio"
             />
           </View>

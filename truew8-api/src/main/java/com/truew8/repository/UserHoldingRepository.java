@@ -12,5 +12,7 @@ public interface UserHoldingRepository extends JpaRepository<UserHolding, UUID> 
 
     List<UserHolding> findByPortfolioUserId(UUID userId);
 
+    Optional<UserHolding> findByPortfolioIdAndTickerAndBrokerage(UUID portfolioId, String ticker, String brokerage);
+
     Optional<UserHolding> findByIdAndPortfolioUserId(UUID id, UUID userId);
 }

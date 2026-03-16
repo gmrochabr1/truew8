@@ -27,7 +27,7 @@ function roundToFour(value: number): number {
 
 export default function RebalanceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const portfolioId = String(id ?? 'default');
+  const portfolioId = String(id ?? '');
   const { isAuthenticated, isLoading } = useAuth();
 
   const [holdings, setHoldings] = useState<UserHolding[]>([]);
@@ -77,6 +77,16 @@ export default function RebalanceScreen() {
     return map;
   }, [holdings]);
 
+  const tickerBrokerageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    holdings.forEach((holding) => {
+      if (!map.has(holding.ticker) && holding.brokerage) {
+        map.set(holding.ticker, holding.brokerage);
+      }
+    });
+    return map;
+  }, [holdings]);
+
   const targetTickers = useMemo(() => Array.from(tickerPriceMap.keys()), [tickerPriceMap]);
 
   const totalTarget = useMemo(() => {
@@ -103,6 +113,10 @@ export default function RebalanceScreen() {
     return <Redirect href="/login" />;
   }
 
+  if (!portfolioId) {
+    return <Redirect href={'/dashboard' as never} />;
+  }
+
   const onCalculate = async () => {
     setRequestError(null);
     setOrders(null);
@@ -125,6 +139,7 @@ export default function RebalanceScreen() {
         ticker,
         percentage: roundToFour(percent / 100),
         price: tickerPriceMap.get(ticker) ?? 1,
+        brokerage: tickerBrokerageMap.get(ticker) ?? null,
       };
     });
 
@@ -141,6 +156,7 @@ export default function RebalanceScreen() {
           ticker: holding.ticker,
           quantity: holding.quantity,
           price: holding.averagePrice,
+          brokerage: holding.brokerage,
         })),
         targetPortfolio,
       });

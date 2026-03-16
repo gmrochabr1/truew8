@@ -22,7 +22,7 @@ function parseDecimal(value: string): number {
 
 export default function PortfolioDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const portfolioId = String(id ?? 'default');
+  const portfolioId = String(id ?? '');
   const { isAuthenticated, isLoading } = useAuth();
 
   const [holdings, setHoldings] = useState<UserHolding[]>([]);
@@ -67,6 +67,10 @@ export default function PortfolioDetailScreen() {
     return <Redirect href="/login" />;
   }
 
+  if (!portfolioId) {
+    return <Redirect href={'/dashboard' as never} />;
+  }
+
   const onSaveManualHolding = async () => {
     setFormError(null);
     const parsedQuantity = parseDecimal(quantity);
@@ -100,7 +104,7 @@ export default function PortfolioDetailScreen() {
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerCard}>
-          <DSText style={styles.headerTitle}>Carteira {portfolioId === 'default' ? 'Principal' : portfolioId}</DSText>
+          <DSText style={styles.headerTitle}>Carteira {portfolioId}</DSText>
           <DSText style={styles.headerSubtitle}>{holdings.length} ativos | {currencyFormatter.format(totalInvested)}</DSText>
         </View>
 

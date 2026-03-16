@@ -51,7 +51,8 @@ public class RebalanceController {
                         .map(holding -> new AssetDTO(
                                 holding.getTicker(),
                                 holding.getQuantity(),
-                                holding.getAveragePrice()
+                            holding.getAveragePrice(),
+                            holding.getBrokerage()
                         ))
                         .toList();
             }

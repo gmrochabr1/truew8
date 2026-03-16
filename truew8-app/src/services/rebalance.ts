@@ -4,12 +4,14 @@ export type RebalanceHolding = {
   ticker: string;
   quantity: number;
   price: number;
+  brokerage?: string | null;
 };
 
 export type RebalanceAllocation = {
   ticker: string;
   percentage: number;
   price: number;
+  brokerage?: string | null;
 };
 
 export type RebalanceRequest = {

@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public record UserHoldingDTO(
         UUID id,
+        UUID portfolioId,
         String ticker,
         String brokerage,
         Market market,

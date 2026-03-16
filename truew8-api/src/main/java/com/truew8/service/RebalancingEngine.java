@@ -45,14 +45,19 @@ public class RebalancingEngine {
                 currentAssetValue = currentAsset.quantity().multiply(currentAsset.price());
             }
 
-            orders.add(createOrderFromDiff(ticker, allocation.price(), targetValue.subtract(currentAssetValue)));
+            String brokerage = allocation.brokerage();
+            if ((brokerage == null || brokerage.isBlank()) && currentAsset != null) {
+                brokerage = currentAsset.brokerage();
+            }
+
+            orders.add(createOrderFromDiff(ticker, allocation.price(), targetValue.subtract(currentAssetValue), brokerage));
         }
 
         for (AssetDTO holding : request.currentHoldings()) {
             String ticker = normalizeTicker(holding.ticker());
             if (!targetByTicker.containsKey(ticker)) {
                 BigDecimal currentAssetValue = holding.quantity().multiply(holding.price());
-                orders.add(createOrderFromDiff(ticker, holding.price(), currentAssetValue.negate()));
+                orders.add(createOrderFromDiff(ticker, holding.price(), currentAssetValue.negate(), holding.brokerage()));
             }
         }
 
@@ -67,20 +72,20 @@ public class RebalancingEngine {
         return total;
     }
 
-    private OrderActionDTO createOrderFromDiff(String ticker, BigDecimal price, BigDecimal diffValue) {
+    private OrderActionDTO createOrderFromDiff(String ticker, BigDecimal price, BigDecimal diffValue, String brokerage) {
         if (diffValue.abs().compareTo(TOLERANCE) < 0) {
-            return holdOrder(ticker);
+            return holdOrder(ticker, brokerage);
         }
 
         BigDecimal quantity = calculateOrderQuantity(ticker, price, diffValue.abs());
         if (quantity.compareTo(BigDecimal.ZERO) <= 0) {
-            return holdOrder(ticker);
+            return holdOrder(ticker, brokerage);
         }
 
         TradeAction action = diffValue.compareTo(BigDecimal.ZERO) > 0 ? TradeAction.BUY : TradeAction.SELL;
         BigDecimal estimatedValue = quantity.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
 
-        return new OrderActionDTO(action, ticker, quantity, estimatedValue);
+        return new OrderActionDTO(action, ticker, quantity, estimatedValue, brokerage);
     }
 
     private BigDecimal calculateOrderQuantity(String ticker, BigDecimal price, BigDecimal absoluteDiff) {
@@ -98,8 +103,14 @@ public class RebalancingEngine {
         return ticker.endsWith("F");
     }
 
-    private OrderActionDTO holdOrder(String ticker) {
-        return new OrderActionDTO(TradeAction.HOLD, ticker, BigDecimal.ZERO, BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP));
+    private OrderActionDTO holdOrder(String ticker, String brokerage) {
+        return new OrderActionDTO(
+                TradeAction.HOLD,
+                ticker,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO.setScale(MONEY_SCALE, RoundingMode.HALF_UP),
+                brokerage
+        );
     }
 
     private String normalizeTicker(String ticker) {

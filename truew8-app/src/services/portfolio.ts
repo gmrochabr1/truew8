@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 import { apiClient } from '@/src/services/api';
 
 export type UserHolding = {
@@ -27,20 +25,18 @@ export type AddHoldingInput = {
   brokerage: string;
   quantity: number;
   averagePrice: number;
+  market?: 'B3' | 'NYSE' | 'NASDAQ' | 'TSX' | 'LSE' | 'EURONEXT' | 'XETRA' | 'TSE' | 'HKEX' | 'ASX' | 'CRYPTO' | 'FOREX';
+  assetType?: 'STOCK' | 'FII' | 'CRYPTO' | 'FIXED_INCOME';
+};
+
+export type CreatePortfolioInput = {
+  name?: string;
+  description?: string;
 };
 
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function isNotImplementedStatus(error: unknown): boolean {
-  if (!axios.isAxiosError(error)) {
-    return false;
-  }
-
-  const status = error.response?.status;
-  return status === 404 || status === 405;
 }
 
 function normalizeHolding(payload: any): UserHolding {
@@ -57,51 +53,21 @@ function normalizeHolding(payload: any): UserHolding {
   };
 }
 
-function buildPortfolioFallback(holdings: UserHolding[]): PortfolioSummary[] {
-  if (holdings.length === 0) {
-    return [];
-  }
-
-  const totalInvested = holdings.reduce((sum, holding) => sum + holding.quantity * holding.averagePrice, 0);
-
-  return [
-    {
-      id: 'default',
-      name: 'Minha Carteira',
-      description: 'Carteira consolidada do investidor',
-      holdingsCount: holdings.length,
-      totalInvested,
-    },
-  ];
+export async function getPortfolios(): Promise<PortfolioSummary[]> {
+  const { data } = await apiClient.get<PortfolioSummary[]>('/portfolio');
+  return data;
 }
 
-export async function getPortfolios(): Promise<PortfolioSummary[]> {
-  try {
-    const { data } = await apiClient.get<PortfolioSummary[]>('/portfolio');
-    return data;
-  } catch (error) {
-    if (!isNotImplementedStatus(error)) {
-      throw error;
-    }
-  }
-
-  const { data } = await apiClient.get<any[]>('/portfolio/holdings');
-  return buildPortfolioFallback((data ?? []).map(normalizeHolding));
+export async function createPortfolio(input: CreatePortfolioInput = {}): Promise<PortfolioSummary> {
+  const { data } = await apiClient.post<PortfolioSummary>('/portfolio', {
+    name: input.name,
+    description: input.description,
+  });
+  return data;
 }
 
 export async function getPortfolioHoldings(portfolioId: string): Promise<UserHolding[]> {
-  if (portfolioId !== 'default') {
-    try {
-      const { data } = await apiClient.get<any[]>(`/portfolio/${portfolioId}/holdings`);
-      return (data ?? []).map(normalizeHolding);
-    } catch (error) {
-      if (!isNotImplementedStatus(error)) {
-        throw error;
-      }
-    }
-  }
-
-  const { data } = await apiClient.get<any[]>('/portfolio/holdings');
+  const { data } = await apiClient.get<any[]>(`/portfolio/${portfolioId}/holdings`);
   return (data ?? []).map(normalizeHolding);
 }
 
@@ -111,30 +77,10 @@ export async function addHoldingManual(portfolioId: string, input: AddHoldingInp
     brokerage: input.brokerage.trim(),
     quantity: input.quantity,
     averagePrice: input.averagePrice,
+    market: input.market,
+    assetType: input.assetType,
   };
 
-  const candidateUrls = portfolioId === 'default'
-    ? ['/portfolio/holdings']
-    : [`/portfolio/${portfolioId}/holdings`, '/portfolio/holdings'];
-
-  for (const url of candidateUrls) {
-    try {
-      const { data } = await apiClient.post<any>(url, payload);
-      return normalizeHolding(data);
-    } catch (error) {
-      if (!isNotImplementedStatus(error)) {
-        throw error;
-      }
-    }
-  }
-
-  return {
-    id: `local-${Date.now()}`,
-    portfolioId,
-    ticker: payload.ticker,
-    brokerage: payload.brokerage,
-    quantity: payload.quantity,
-    averagePrice: payload.averagePrice,
-    isLocked: false,
-  };
+  const { data } = await apiClient.post<any>(`/portfolio/${portfolioId}/holdings`, payload);
+  return normalizeHolding(data);
 }
