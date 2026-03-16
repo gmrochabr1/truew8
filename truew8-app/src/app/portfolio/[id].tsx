@@ -4,30 +4,28 @@ import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimension
 import { useFocusEffect } from '@react-navigation/native';
 
 import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
+import { ConfirmActionModal } from '@/src/components/common/ConfirmActionModal';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
 import { CascadingRebalanceFlow } from '@/src/components/rebalance/CascadingRebalanceFlow';
-import { addHoldingManual, getPortfolioHoldings, UserHolding } from '@/src/services/portfolio';
+import { maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
+import { addHoldingManual, deletePortfolio, getPortfolioHoldings, getPortfolios, updatePortfolio, UserHolding } from '@/src/services/portfolio';
 import { useAuth } from '@/src/store/AuthContext';
+import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from '@/src/theme/tokens';
 
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
-
-function parseDecimal(value: string): number {
-  return Number(value.replace(',', '.'));
-}
-
 export default function PortfolioDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { width: screenWidth } = useWindowDimensions();
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const portfolioId = String(id ?? '');
   const { isAuthenticated, isLoading } = useAuth();
+  const { t, locale, formatCurrency } = useLocale();
+  const isCompactPortrait = screenWidth < 640 && screenHeight >= screenWidth;
+  const numberLocale = locale === 'en-US' ? 'en-US' : 'pt-BR';
 
   const [holdings, setHoldings] = useState<UserHolding[]>([]);
+  const [portfolioName, setPortfolioName] = useState(String(name ?? '').trim());
   const [loadingHoldings, setLoadingHoldings] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,19 +36,32 @@ export default function PortfolioDetailScreen() {
   const [averagePrice, setAveragePrice] = useState('');
   const [brokerage, setBrokerage] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [isEditNameDrawerOpen, setIsEditNameDrawerOpen] = useState(false);
+  const [isEditNameDrawerRendered, setIsEditNameDrawerRendered] = useState(false);
+  const [editedPortfolioName, setEditedPortfolioName] = useState('');
+  const [editNameError, setEditNameError] = useState<string | null>(null);
+  const [isSavingPortfolioName, setIsSavingPortfolioName] = useState(false);
   const [isRebalanceOpen, setIsRebalanceOpen] = useState(false);
   const [isClosingPortfolio, setIsClosingPortfolio] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [isSavingManualHolding, setIsSavingManualHolding] = useState(false);
 
   const drawerWidth = useMemo(() => {
+    if (isCompactPortrait) {
+      return screenWidth;
+    }
     const boundedWidth = Math.min(screenWidth, 1024);
     if (boundedWidth < 560) {
       return boundedWidth;
     }
     return Math.min(boundedWidth * 0.94, 1024);
-  }, [screenWidth]);
+  }, [isCompactPortrait, screenWidth]);
 
   const manualDrawerWidth = useMemo(() => {
+    if (isCompactPortrait) {
+      return screenWidth;
+    }
     if (drawerWidth < 560) {
       return drawerWidth;
     }
@@ -58,17 +69,52 @@ export default function PortfolioDetailScreen() {
       return drawerWidth * 0.9;
     }
     return 520;
-  }, [drawerWidth]);
+  }, [drawerWidth, isCompactPortrait, screenWidth]);
 
-  const animationStart = useMemo(() => Math.max(screenWidth, 1024), [screenWidth]);
+  const portfolioDrawerHeight = useMemo(() => {
+    if (!isCompactPortrait) {
+      return undefined;
+    }
+    const visibleTopGap = 72;
+    const preferredHeight = Math.round(screenHeight * 0.82);
+    return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 420));
+  }, [isCompactPortrait, screenHeight]);
 
-  const drawerTranslate = useMemo(() => new Animated.Value(screenWidth), [screenWidth]);
+  const manualDrawerHeight = useMemo(() => {
+    if (!isCompactPortrait) {
+      return undefined;
+    }
+    const visibleTopGap = 88;
+    const preferredHeight = Math.round(screenHeight * 0.68);
+    return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 320));
+  }, [isCompactPortrait, screenHeight]);
+
+  const animationStart = useMemo(
+    () => (isCompactPortrait ? Math.max(screenHeight, 640) : Math.max(screenWidth, 1024)),
+    [isCompactPortrait, screenHeight, screenWidth],
+  );
+
+  const drawerTranslate = useMemo(() => new Animated.Value(animationStart), [animationStart]);
   const backdropOpacity = useMemo(() => new Animated.Value(0), []);
   const manualDrawerTranslate = useMemo(() => new Animated.Value(animationStart), [animationStart]);
   const manualBackdropOpacity = useMemo(() => new Animated.Value(0), []);
+  const editNameDrawerTranslate = useMemo(() => new Animated.Value(animationStart), [animationStart]);
+  const editNameBackdropOpacity = useMemo(() => new Animated.Value(0), []);
+
+  const getDrawerTransform = useCallback(
+    (value: Animated.Value) => (isCompactPortrait ? [{ translateY: value }] : [{ translateX: value }]),
+    [isCompactPortrait],
+  );
 
   React.useEffect(() => {
-    drawerTranslate.setValue(screenWidth);
+    const normalizedName = String(name ?? '').trim();
+    if (normalizedName) {
+      setPortfolioName(normalizedName);
+    }
+  }, [name]);
+
+  React.useEffect(() => {
+    drawerTranslate.setValue(animationStart);
     backdropOpacity.setValue(0);
     Animated.parallel([
       Animated.timing(drawerTranslate, {
@@ -84,7 +130,7 @@ export default function PortfolioDetailScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [screenWidth, drawerTranslate, backdropOpacity]);
+  }, [animationStart, backdropOpacity, drawerTranslate]);
 
   React.useEffect(() => {
     if (isManualDrawerOpen) {
@@ -137,14 +183,75 @@ export default function PortfolioDetailScreen() {
     manualDrawerTranslate,
   ]);
 
+  React.useEffect(() => {
+    if (isEditNameDrawerOpen) {
+      setIsEditNameDrawerRendered(true);
+      editNameDrawerTranslate.setValue(animationStart);
+      editNameBackdropOpacity.setValue(0);
+
+      Animated.parallel([
+        Animated.timing(editNameDrawerTranslate, {
+          toValue: 0,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(editNameBackdropOpacity, {
+          toValue: 1,
+          duration: 260,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+      return;
+    }
+
+    if (!isEditNameDrawerRendered) {
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(editNameDrawerTranslate, {
+        toValue: animationStart,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(editNameBackdropOpacity, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsEditNameDrawerRendered(false);
+    });
+  }, [
+    animationStart,
+    editNameBackdropOpacity,
+    editNameDrawerTranslate,
+    isEditNameDrawerOpen,
+    isEditNameDrawerRendered,
+  ]);
+
   const loadHoldings = useCallback(async () => {
     try {
       setLoadingHoldings(true);
       setError(null);
       const data = await getPortfolioHoldings(portfolioId);
       setHoldings(data);
+
+      try {
+        const summaries = await getPortfolios();
+        const matchingSummary = summaries.find((portfolio) => portfolio.id === portfolioId);
+        if (matchingSummary?.name) {
+          setPortfolioName(matchingSummary.name);
+        }
+      } catch {
+        // Keep the last known route name if summaries fail.
+      }
     } catch {
-      setError('Nao foi possivel carregar os ativos desta carteira.');
+      setError(t('portfolio.loadError'));
     } finally {
       setLoadingHoldings(false);
     }
@@ -161,7 +268,7 @@ export default function PortfolioDetailScreen() {
   }, [holdings]);
 
   if (isLoading) {
-    return <AuthLoadingScreen message="Validando sessao..." />;
+    return <AuthLoadingScreen message={t('app.validatingSession')} />;
   }
 
   if (!isAuthenticated) {
@@ -179,7 +286,7 @@ export default function PortfolioDetailScreen() {
     setIsClosingPortfolio(true);
     Animated.parallel([
       Animated.timing(drawerTranslate, {
-        toValue: screenWidth,
+        toValue: animationStart,
         duration: 280,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
@@ -207,18 +314,67 @@ export default function PortfolioDetailScreen() {
     setIsManualDrawerOpen(false);
   };
 
+  const openEditNameDrawer = () => {
+    setEditNameError(null);
+    setEditedPortfolioName(portfolioName);
+    setIsEditNameDrawerOpen(true);
+  };
+
+  const closeEditNameDrawer = () => {
+    if (isSavingPortfolioName) {
+      return;
+    }
+    setIsEditNameDrawerOpen(false);
+  };
+
   const openManualDrawer = () => {
     setFormError(null);
     setIsManualDrawerOpen(true);
   };
 
+  const openDeletePortfolioModal = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeletePortfolioModal = () => {
+    if (isDeletingPortfolio) {
+      return;
+    }
+    setIsDeleteModalOpen(false);
+  };
+
+  const onConfirmDeletePortfolio = async () => {
+    try {
+      setIsDeletingPortfolio(true);
+      await deletePortfolio(portfolioId);
+      setIsDeleteModalOpen(false);
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+      router.replace('/dashboard' as never);
+    } catch {
+      setError(t('portfolio.deleteError'));
+    } finally {
+      setIsDeletingPortfolio(false);
+    }
+  };
+
+  const onQuantityChange = useCallback((value: string) => {
+    setQuantity(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 8 }));
+  }, [numberLocale]);
+
+  const onAveragePriceChange = useCallback((value: string) => {
+    setAveragePrice(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }));
+  }, [numberLocale]);
+
   const onSaveManualHolding = async () => {
     setFormError(null);
-    const parsedQuantity = parseDecimal(quantity);
-    const parsedAveragePrice = parseDecimal(averagePrice);
+    const parsedQuantity = parseLocaleNumber(quantity, numberLocale);
+    const parsedAveragePrice = parseLocaleNumber(averagePrice, numberLocale);
 
     if (!ticker.trim() || !brokerage.trim() || parsedQuantity <= 0 || parsedAveragePrice <= 0) {
-      setFormError('Preencha ticker, corretora, quantidade e preco medio com valores validos.');
+      setFormError(t('portfolio.formError'));
       return;
     }
 
@@ -238,35 +394,84 @@ export default function PortfolioDetailScreen() {
       setBrokerage('');
       setIsManualDrawerOpen(false);
     } catch {
-      setFormError('Nao foi possivel adicionar o ativo manualmente.');
+      setFormError(t('portfolio.addError'));
     } finally {
       setIsSavingManualHolding(false);
     }
   };
 
+  const onSavePortfolioName = async () => {
+    const normalizedName = editedPortfolioName.trim();
+
+    if (!normalizedName) {
+      setEditNameError(t('portfolio.nameInvalid'));
+      return;
+    }
+
+    try {
+      setIsSavingPortfolioName(true);
+      setEditNameError(null);
+      const updated = await updatePortfolio(portfolioId, { name: normalizedName });
+      setPortfolioName(updated.name);
+      setIsEditNameDrawerOpen(false);
+    } catch {
+      setEditNameError(t('portfolio.nameUpdateError'));
+    } finally {
+      setIsSavingPortfolioName(false);
+    }
+  };
+
   return (
-    <View style={styles.overlayRoot}>
+    <View style={[styles.overlayRoot, isCompactPortrait ? styles.overlayRootMobile : null]}>
       <Animated.View style={[styles.pageBackdrop, { opacity: backdropOpacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={closePortfolioDrawer} />
       </Animated.View>
 
-      <Animated.View style={[styles.drawerShell, { width: drawerWidth, transform: [{ translateX: drawerTranslate }] }]}
+      <Animated.View
+        testID="portfolio-detail-drawer"
+        style={[
+          styles.drawerShell,
+          isCompactPortrait ? styles.drawerShellMobile : styles.drawerShellDesktop,
+          isCompactPortrait ? styles.drawerShadowTop : styles.drawerShadowLeft,
+          {
+            width: drawerWidth,
+            height: portfolioDrawerHeight ?? '100%',
+            transform: getDrawerTransform(drawerTranslate),
+          },
+        ]}
       >
         <View style={styles.screen}>
           <ScrollView contentContainerStyle={styles.container}>
             <View style={styles.contentWrap}>
               <View style={styles.headerRow}>
                 <View style={styles.headerCard}>
-                  <DSText style={styles.headerTitle}>Carteira {portfolioId}</DSText>
-                  <DSText style={styles.headerSubtitle}>{holdings.length} ativos | {currencyFormatter.format(totalInvested)}</DSText>
+                  <DSText style={styles.headerTitle}>{portfolioName || t('portfolio.titleFallback')}</DSText>
+                  <DSText style={styles.headerSubtitle}>{t('portfolio.subtitle', { count: holdings.length, total: formatCurrency(totalInvested) })}</DSText>
                 </View>
-                <Pressable onPress={closePortfolioDrawer} style={styles.closeDrawerButton} testID="portfolio-close-drawer">
-                  <DSText style={styles.closeDrawerText}>Fechar</DSText>
-                </Pressable>
+                <View style={styles.headerActionsColumn}>
+                  <Pressable onPress={openEditNameDrawer} style={styles.secondaryDrawerButton} testID="portfolio-edit-name-button">
+                    <DSText style={styles.secondaryDrawerButtonText}>{t('portfolio.editName')}</DSText>
+                  </Pressable>
+                  <Pressable onPress={openDeletePortfolioModal} style={styles.deleteDrawerButton} testID="portfolio-delete-button">
+                    <DSText style={styles.deleteDrawerButtonText}>{t('portfolio.delete')}</DSText>
+                  </Pressable>
+                  <Pressable onPress={closePortfolioDrawer} style={styles.closeDrawerButton} testID="portfolio-close-drawer">
+                    <DSText style={styles.closeDrawerText}>{t('portfolio.close')}</DSText>
+                  </Pressable>
+                </View>
               </View>
 
               {error ? <DSText style={styles.error}>{error}</DSText> : null}
-              {loadingHoldings ? <DSText>Carregando ativos...</DSText> : null}
+              {loadingHoldings ? <DSText>{t('portfolio.loadingHoldings')}</DSText> : null}
+
+              <View style={styles.rebalanceCta}>
+                <DSButton
+                  title={t('portfolio.rebalanceCta')}
+                  onPress={() => setIsRebalanceOpen(true)}
+                  testID="portfolio-rebalance-button"
+                  disabled={loadingHoldings || holdings.length === 0}
+                />
+              </View>
 
               {holdings.map((holding) => (
                 <View key={holding.id} style={styles.holdingCard}>
@@ -274,25 +479,17 @@ export default function PortfolioDetailScreen() {
                     <DSText style={styles.holdingTicker}>{holding.ticker}</DSText>
                     <DSText style={styles.holdingBrokerage}>{holding.brokerage}</DSText>
                   </View>
-                  <DSText style={styles.holdingMeta}>Quantidade: {holding.quantity}</DSText>
-                  <DSText style={styles.holdingMeta}>Preco medio: {currencyFormatter.format(holding.averagePrice)}</DSText>
-                  <DSText style={styles.holdingMeta}>Corretora: {holding.brokerage}</DSText>
+                  <DSText style={styles.holdingMeta}>{t('portfolio.quantity', { value: holding.quantity })}</DSText>
+                  <DSText style={styles.holdingMeta}>{t('portfolio.averagePrice', { value: formatCurrency(holding.averagePrice) })}</DSText>
+                  <DSText style={styles.holdingMeta}>{t('portfolio.brokerage', { value: holding.brokerage })}</DSText>
                 </View>
               ))}
 
               {!loadingHoldings && holdings.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <DSText style={styles.emptyText}>Nenhum ativo nesta carteira ainda.</DSText>
+                  <DSText style={styles.emptyText}>{t('portfolio.empty')}</DSText>
                 </View>
               ) : null}
-
-              <View style={styles.rebalanceCta}>
-                <DSButton
-                  title="Novo Aporte (Rebalancear)"
-                  onPress={() => setIsRebalanceOpen(true)}
-                  testID="portfolio-rebalance-button"
-                />
-              </View>
             </View>
           </ScrollView>
 
@@ -301,7 +498,7 @@ export default function PortfolioDetailScreen() {
             onPress={openManualDrawer}
             testID="portfolio-add-manual-fab"
           >
-            <DSText style={styles.fabLabel}>+ Adicionar Ativo Manualmente</DSText>
+            <DSText style={styles.fabLabel}>{t('portfolio.addManual')}</DSText>
           </Pressable>
 
           {isManualDrawerRendered ? (
@@ -316,30 +513,84 @@ export default function PortfolioDetailScreen() {
               </Animated.View>
 
               <Animated.View
+                testID="portfolio-manual-drawer"
                 style={[
                   styles.manualDrawerShell,
+                  isCompactPortrait ? styles.manualDrawerShellMobile : styles.manualDrawerShellDesktop,
+                  isCompactPortrait ? styles.manualDrawerShadowTop : styles.manualDrawerShadowLeft,
                   {
                     width: manualDrawerWidth,
-                    transform: [{ translateX: manualDrawerTranslate }],
+                    height: manualDrawerHeight ?? '100%',
+                    transform: getDrawerTransform(manualDrawerTranslate),
                   },
                 ]}
               >
                 <ScrollView style={styles.manualDrawerScroll} contentContainerStyle={styles.manualDrawerContent}>
-                  <DSText style={styles.manualDrawerTitle}>Novo ativo</DSText>
-                  <DSInput label="Ticker" value={ticker} onChangeText={setTicker} autoCapitalize="characters" testID="manual-ticker" />
-                  <DSInput label="Quantidade" value={quantity} onChangeText={setQuantity} keyboardType="numeric" testID="manual-quantity" />
-                  <DSInput label="Preco medio" value={averagePrice} onChangeText={setAveragePrice} keyboardType="numeric" testID="manual-average-price" />
-                  <DSInput label="Corretora" value={brokerage} onChangeText={setBrokerage} testID="manual-brokerage" />
+                  <DSText style={styles.manualDrawerTitle}>{t('portfolio.newAsset')}</DSText>
+                  <DSInput label={t('portfolio.ticker')} value={ticker} onChangeText={setTicker} autoCapitalize="characters" testID="manual-ticker" />
+                  <DSInput label={t('portfolio.quantityInput')} value={quantity} onChangeText={onQuantityChange} keyboardType="decimal-pad" testID="manual-quantity" />
+                  <DSInput label={t('portfolio.averagePriceInput')} value={averagePrice} onChangeText={onAveragePriceChange} keyboardType="decimal-pad" testID="manual-average-price" />
+                  <DSInput label={t('portfolio.brokerageInput')} value={brokerage} onChangeText={setBrokerage} testID="manual-brokerage" />
 
                   {formError ? <DSText style={styles.error}>{formError}</DSText> : null}
 
                   <View style={styles.manualDrawerActions}>
-                    <DSButton title="Cancelar" onPress={closeManualDrawer} disabled={isSavingManualHolding} />
+                    <DSButton title={t('common.cancel')} onPress={closeManualDrawer} disabled={isSavingManualHolding} />
                     <DSButton
-                      title={isSavingManualHolding ? 'Salvando...' : 'Salvar'}
+                      title={isSavingManualHolding ? t('common.saving') : t('common.save')}
                       onPress={() => void onSaveManualHolding()}
                       testID="manual-save-button"
                       disabled={isSavingManualHolding}
+                    />
+                  </View>
+                </ScrollView>
+              </Animated.View>
+            </View>
+          ) : null}
+
+          {isEditNameDrawerRendered ? (
+            <View style={styles.manualDrawerRoot} pointerEvents="box-none">
+              <Animated.View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: 'rgba(0, 0, 0, 0.6)', opacity: editNameBackdropOpacity, zIndex: 20 },
+                ]}
+              >
+                <Pressable style={StyleSheet.absoluteFill} onPress={closeEditNameDrawer} />
+              </Animated.View>
+
+              <Animated.View
+                testID="portfolio-edit-name-drawer"
+                style={[
+                  styles.manualDrawerShell,
+                  isCompactPortrait ? styles.manualDrawerShellMobile : styles.manualDrawerShellDesktop,
+                  isCompactPortrait ? styles.manualDrawerShadowTop : styles.manualDrawerShadowLeft,
+                  {
+                    width: manualDrawerWidth,
+                    height: manualDrawerHeight ?? '100%',
+                    transform: getDrawerTransform(editNameDrawerTranslate),
+                  },
+                ]}
+              >
+                <ScrollView style={styles.manualDrawerScroll} contentContainerStyle={styles.manualDrawerContent}>
+                  <DSText style={styles.manualDrawerTitle}>{t('portfolio.nameDrawerTitle')}</DSText>
+                  <DSInput
+                    label={t('portfolio.nameInput')}
+                    value={editedPortfolioName}
+                    onChangeText={setEditedPortfolioName}
+                    placeholder={t('portfolio.namePlaceholder')}
+                    testID="portfolio-edit-name-input"
+                  />
+
+                  {editNameError ? <DSText style={styles.error}>{editNameError}</DSText> : null}
+
+                  <View style={styles.manualDrawerActions}>
+                    <DSButton title={t('common.cancel')} onPress={closeEditNameDrawer} disabled={isSavingPortfolioName} />
+                    <DSButton
+                      title={isSavingPortfolioName ? t('common.saving') : t('common.save')}
+                      onPress={() => void onSavePortfolioName()}
+                      testID="portfolio-edit-name-save"
+                      disabled={isSavingPortfolioName}
                     />
                   </View>
                 </ScrollView>
@@ -354,6 +605,18 @@ export default function PortfolioDetailScreen() {
             holdings={holdings}
             loadingHoldings={loadingHoldings}
           />
+
+          <ConfirmActionModal
+            visible={isDeleteModalOpen}
+            title={t('portfolio.deleteModalTitle')}
+            message={t('portfolio.deleteModalMessage')}
+            confirmLabel={t('portfolio.deleteModalConfirm')}
+            busyConfirmLabel={t('portfolio.deleteModalBusy')}
+            onConfirm={() => void onConfirmDeletePortfolio()}
+            onCancel={closeDeletePortfolioModal}
+            isBusy={isDeletingPortfolio}
+            testID="portfolio-delete-modal"
+          />
         </View>
       </Animated.View>
     </View>
@@ -367,17 +630,37 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-end',
   },
+  overlayRootMobile: {
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
   pageBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(5, 15, 35, 0.52)',
   },
   drawerShell: {
     flex: 1,
+    overflow: 'hidden',
+  },
+  drawerShellDesktop: {
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
-    overflow: 'hidden',
+  },
+  drawerShellMobile: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  drawerShadowLeft: {
     shadowColor: '#000',
     shadowOffset: { width: -8, height: 0 },
+    shadowOpacity: 0.24,
+    elevation: 18,
+  },
+  drawerShadowTop: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.24,
     elevation: 18,
   },
@@ -401,6 +684,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.sm,
     alignItems: 'stretch',
+  },
+  headerActionsColumn: {
+    gap: 8,
+    justifyContent: 'space-between',
   },
   headerCard: {
     flex: 1,
@@ -426,8 +713,37 @@ const styles = StyleSheet.create({
     borderColor: '#2A4A80',
     backgroundColor: '#11325E',
     paddingHorizontal: 14,
+    minHeight: 42,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  secondaryDrawerButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#37639A',
+    backgroundColor: '#1F4D85',
+    paddingHorizontal: 14,
+    minHeight: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  secondaryDrawerButtonText: {
+    color: '#E8F2FF',
+    fontWeight: '700',
+  },
+  deleteDrawerButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#A1454D',
+    backgroundColor: '#7A2730',
+    paddingHorizontal: 14,
+    minHeight: 42,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteDrawerButtonText: {
+    color: '#FFECEE',
+    fontWeight: '800',
   },
   closeDrawerText: {
     color: '#E3EEFF',
@@ -476,6 +792,9 @@ const styles = StyleSheet.create({
   },
   rebalanceCta: {
     marginTop: theme.spacing.sm,
+    width: '100%',
+    maxWidth: 360,
+    alignSelf: 'center',
   },
   fab: {
     position: 'absolute',
@@ -498,16 +817,35 @@ const styles = StyleSheet.create({
   },
   manualDrawerShell: {
     position: 'absolute',
-    right: 0,
-    height: '100%',
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.panel,
     zIndex: 30,
+  },
+  manualDrawerShellDesktop: {
+    right: 0,
+    height: '100%',
+    borderTopLeftRadius: 18,
+    borderBottomLeftRadius: 18,
+  },
+  manualDrawerShellMobile: {
+    right: 0,
+    left: 0,
+    bottom: 0,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  manualDrawerShadowLeft: {
     shadowColor: '#000',
     shadowOffset: { width: -5, height: 0 },
+    shadowOpacity: 0.18,
+    elevation: 10,
+  },
+  manualDrawerShadowTop: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.18,
     elevation: 10,
   },

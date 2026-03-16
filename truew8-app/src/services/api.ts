@@ -3,6 +3,7 @@ import axios from "axios";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8080";
 let authTokenGetter: () => string | null = () => null;
 let unauthorizedHandler: () => void = () => {};
+let localeGetter: () => string = () => 'pt-BR';
 
 export const setAuthTokenGetter = (getter: () => string | null) => {
   authTokenGetter = getter;
@@ -10,6 +11,10 @@ export const setAuthTokenGetter = (getter: () => string | null) => {
 
 export const setUnauthorizedHandler = (handler: () => void) => {
   unauthorizedHandler = handler;
+};
+
+export const setLocaleGetter = (getter: () => string) => {
+  localeGetter = getter;
 };
 
 export const apiClient = axios.create({
@@ -25,6 +30,8 @@ apiClient.interceptors.request.use((config) => {
   const requestUrl = config.url ?? "";
   const isAuthEndpoint = requestUrl.startsWith("/auth/");
   const token = authTokenGetter();
+  const locale = localeGetter();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   if (config.data instanceof FormData && config.headers) {
     delete config.headers["Content-Type"];
@@ -32,6 +39,11 @@ apiClient.interceptors.request.use((config) => {
 
   if (token && !isAuthEndpoint) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  config.headers['Accept-Language'] = locale;
+  if (timezone) {
+    config.headers['X-User-Timezone'] = timezone;
   }
 
   return config;

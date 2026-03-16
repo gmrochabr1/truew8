@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.StaticMessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
@@ -42,7 +43,24 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenRotationService, 1209600000L);
+        StaticMessageSource messageSource = new StaticMessageSource();
+        java.util.Locale ptBr = java.util.Locale.forLanguageTag("pt-BR");
+        java.util.Locale enUs = java.util.Locale.forLanguageTag("en-US");
+
+        messageSource.addMessage("auth.email.exists", enUs, "Email already registered");
+        messageSource.addMessage("auth.email.exists", ptBr, "Email already registered");
+        messageSource.addMessage("auth.invalid.credentials", enUs, "Invalid credentials");
+        messageSource.addMessage("auth.invalid.credentials", ptBr, "Invalid credentials");
+        messageSource.addMessage("auth.missing.refresh.token", enUs, "Missing refresh token");
+        messageSource.addMessage("auth.missing.refresh.token", ptBr, "Missing refresh token");
+        messageSource.addMessage("auth.invalid.refresh.token", enUs, "Invalid refresh token");
+        messageSource.addMessage("auth.invalid.refresh.token", ptBr, "Invalid refresh token");
+        messageSource.addMessage("auth.user.not.found", enUs, "User not found");
+        messageSource.addMessage("auth.user.not.found", ptBr, "User not found");
+        messageSource.addMessage("auth.expired.refresh.session", enUs, "Expired refresh session");
+        messageSource.addMessage("auth.expired.refresh.session", ptBr, "Expired refresh session");
+        MessageResolver messages = new MessageResolver(messageSource);
+        authService = new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenRotationService, messages, 1209600000L);
     }
 
     @Test

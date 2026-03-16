@@ -17,13 +17,16 @@ public class GoogleGeminiApiClient implements GeminiApiClient {
 
     private final String apiKey;
     private final String model;
+    private final MessageResolver messages;
 
     private volatile Client client;
 
     public GoogleGeminiApiClient(
+            MessageResolver messages,
             @Value("${app.gemini.api-key:}") String apiKey,
             @Value("${app.gemini.model:gemini-2.5-flash}") String model
     ) {
+        this.messages = messages;
         this.apiKey = apiKey;
         this.model = model;
     }
@@ -31,7 +34,7 @@ public class GoogleGeminiApiClient implements GeminiApiClient {
     @Override
     public String extractHoldingsJson(byte[] imageBytes, String mimeType) {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Gemini API key is not configured");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, messages.get("gemini.key.not.configured"));
         }
 
         GenerateContentConfig config = GenerateContentConfig.builder()
@@ -47,7 +50,7 @@ public class GoogleGeminiApiClient implements GeminiApiClient {
             GenerateContentResponse response = getClient().models.generateContent(model, content, config);
             return response.text();
         } catch (RuntimeException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Gemini extraction failed", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, messages.get("gemini.extraction.failed"), ex);
         }
     }
 

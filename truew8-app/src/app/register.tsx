@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
-import { t } from '@/src/i18n';
 import { getAuthErrorMessageKey } from '@/src/services/authErrors';
 import { useAuth } from '@/src/store/AuthContext';
+import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from '@/src/theme/tokens';
 
 export default function RegisterScreen() {
   const { register, isAuthenticated, isLoading } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -24,7 +27,7 @@ export default function RegisterScreen() {
   }, [isAuthenticated, router]);
 
   if (isLoading) {
-    return <AuthLoadingScreen message="Validando sessao..." />;
+    return <AuthLoadingScreen message={t('app.validatingSession')} />;
   }
 
   if (isAuthenticated) {
@@ -45,7 +48,7 @@ export default function RegisterScreen() {
 
     try {
       await register(email, password);
-      router.replace('/dashboard' as never);
+      router.replace('/login' as never);
     } catch (submitError) {
       setError(t(getAuthErrorMessageKey(submitError, 'register')));
     }
@@ -79,9 +82,24 @@ export default function RegisterScreen() {
             label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!isPasswordVisible}
             autoCapitalize="none"
             testID="register-password-input"
+            rightElement={
+              <Pressable
+                onPress={() => setIsPasswordVisible((current) => !current)}
+                testID="register-password-visibility-toggle"
+                accessibilityRole="button"
+                accessibilityLabel={isPasswordVisible ? t('auth.passwordVisibility.hide') : t('auth.passwordVisibility.show')}
+                style={styles.passwordVisibilityButton}
+              >
+                <Ionicons
+                  name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={theme.colors.primary}
+                />
+              </Pressable>
+            }
           />
 
           <DSButton title={t('auth.register')} onPress={onSubmit} testID="register-submit-button" />
@@ -174,5 +192,13 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  passwordVisibilityButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
 });

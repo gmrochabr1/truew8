@@ -2,6 +2,7 @@ package com.truew8.controller;
 
 import com.truew8.dto.OcrUploadResponseDTO;
 import com.truew8.service.OcrService;
+import com.truew8.service.MessageResolver;
 import java.io.IOException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +22,11 @@ public class OcrController {
     private static final long MAX_IMAGE_SIZE_BYTES = 10L * 1024L * 1024L;
 
     private final OcrService ocrService;
+    private final MessageResolver messages;
 
-    public OcrController(OcrService ocrService) {
+    public OcrController(OcrService ocrService, MessageResolver messages) {
         this.ocrService = ocrService;
+        this.messages = messages;
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -32,15 +35,15 @@ public class OcrController {
             Authentication authentication
     ) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("ocr.unauthorized"));
         }
 
         if (image.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("ocr.image.required"));
         }
 
         if (image.getSize() > MAX_IMAGE_SIZE_BYTES) {
-            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Image exceeds 10MB limit");
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, messages.get("ocr.image.too.large"));
         }
 
         try {
@@ -49,7 +52,7 @@ public class OcrController {
             );
             return ResponseEntity.ok(response);
         } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid image payload", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("ocr.invalid.payload"), ex);
         }
     }
 }

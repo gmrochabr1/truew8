@@ -1,13 +1,18 @@
 import { Stack } from 'expo-router';
 import React from 'react';
+import { useWindowDimensions } from 'react-native';
 
 import { VaultGuard } from '@/src/components/security/VaultGuard';
 import { AuthProvider } from '@/src/store/AuthContext';
 import { useAuth } from '@/src/store/AuthContext';
+import { LocaleProvider } from '@/src/store/LocaleContext';
 import { VaultProvider } from '@/src/store/VaultContext';
 
 function ProtectedAppShell() {
   const { email, isAuthenticated } = useAuth();
+  const { width, height } = useWindowDimensions();
+  const isCompactPortrait = width < 640 && height >= width;
+  const portfolioAnimation = isCompactPortrait ? 'slide_from_bottom' : 'slide_from_right';
 
   if (isAuthenticated && email) {
     return (
@@ -21,7 +26,7 @@ function ProtectedAppShell() {
             name="portfolio/[id]"
             options={{
               presentation: 'transparentModal',
-              animation: 'slide_from_right',
+              animation: portfolioAnimation,
               contentStyle: { backgroundColor: 'transparent' },
             }}
           />
@@ -40,7 +45,7 @@ function ProtectedAppShell() {
         name="portfolio/[id]"
         options={{
           presentation: 'transparentModal',
-          animation: 'slide_from_right',
+          animation: portfolioAnimation,
           contentStyle: { backgroundColor: 'transparent' },
         }}
       />
@@ -51,9 +56,11 @@ function ProtectedAppShell() {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <VaultProvider>
-        <ProtectedAppShell />
-      </VaultProvider>
+      <LocaleProvider>
+        <VaultProvider>
+          <ProtectedAppShell />
+        </VaultProvider>
+      </LocaleProvider>
     </AuthProvider>
   );
 }

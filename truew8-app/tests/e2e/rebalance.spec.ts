@@ -10,9 +10,19 @@ test('keeps cascading flow stable across desktop and mobile directions', async (
   await page.goto('/');
 
   await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('VALE3');
+  await page.getByTestId('manual-quantity').fill('10');
+  await page.getByTestId('manual-average-price').fill('50');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
   await page.getByTestId('portfolio-rebalance-button').click();
   await expect(page.getByTestId('rebalance-step-1-drawer')).toBeVisible();
   await page.waitForTimeout(450);
+
+  await page.getByTestId('rebalance-deposit-input').fill('100x,5y');
+  await expect(page.getByTestId('rebalance-deposit-input')).toHaveValue('100,5');
 
   await page.getByTestId('rebalance-step-1-continue').press('Enter');
   await expect(page.getByTestId('rebalance-step-2-drawer')).toBeVisible();

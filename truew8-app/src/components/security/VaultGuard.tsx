@@ -5,6 +5,7 @@ import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
 import { setPortfolioVaultKeyGetter } from '@/src/services/portfolio';
+import { useLocale } from '@/src/store/LocaleContext';
 import { useVault } from '@/src/store/VaultContext';
 import { theme } from '@/src/theme/tokens';
 
@@ -14,6 +15,7 @@ type VaultGuardProps = {
 };
 
 export function VaultGuard({ email, children }: VaultGuardProps) {
+  const { t } = useLocale();
   const {
     state,
     isReady,
@@ -67,10 +69,10 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
       const unlocked = await unlockWithBiometrics(email);
       setIsBusy(false);
       if (!unlocked) {
-        setError('Biometria nao validada. Digite seu PIN de 6 digitos.');
+        setError(t('vault.errorBiometricFailed'));
       }
     })();
-  }, [biometricEnabled, email, rememberPin, state, unlockWithBiometrics]);
+  }, [biometricEnabled, email, rememberPin, state, t, unlockWithBiometrics]);
 
   const isCreationMode = state === 'needs-pin-creation';
   const isEntryMode = state === 'needs-pin-entry';
@@ -79,17 +81,17 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
     return rememberOnDevice && biometricAvailable && Platform.OS !== 'web';
   }, [biometricAvailable, rememberOnDevice]);
 
-  const submitLabel = isCreationMode ? 'Criar Cofre' : 'Desbloquear Cofre';
+  const submitLabel = isCreationMode ? t('vault.createButton') : t('vault.unlockButton');
 
   const onSubmit = async () => {
     setError(null);
     if (!/^\d{6}$/.test(pin)) {
-      setError('Digite um PIN numerico de 6 digitos.');
+      setError(t('vault.errorInvalidPin'));
       return;
     }
 
     if (isCreationMode && pin !== confirmPin) {
-      setError('A confirmacao do PIN nao confere.');
+      setError(t('vault.errorPinMismatch'));
       return;
     }
 
@@ -103,7 +105,7 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
       setPin('');
       setConfirmPin('');
     } catch {
-      setError('Nao foi possivel validar o PIN do cofre.');
+      setError(t('vault.errorValidation'));
     } finally {
       setIsBusy(false);
     }
@@ -116,14 +118,14 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
-        <DSText style={styles.title}>{isCreationMode ? 'Configurar Cofre' : 'Desbloquear Cofre'}</DSText>
+        <DSText style={styles.title}>{isCreationMode ? t('vault.setupTitle') : t('vault.unlockTitle')}</DSText>
         <DSText style={styles.subtitle}>
-          Seus dados financeiros sao criptografados no seu dispositivo. O TrueW8 nao tem acesso a sua carteira. Nos nao guardamos o seu PIN. Se voce o esquecer, nao sera possivel recuperar os dados atuais da sua carteira e voce precisara recomecar do zero.
+          {t('vault.description')}
         </DSText>
 
         {isEntryMode && rememberPin && biometricEnabled && biometricAvailable && Platform.OS !== 'web' ? (
           <DSButton
-            title={isBusy ? 'Validando biometria...' : 'Entrar com Biometria'}
+            title={isBusy ? t('vault.biometricValidating') : t('vault.biometricLogin')}
             onPress={() => {
               void (async () => {
                 setError(null);
@@ -131,7 +133,7 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
                 const unlocked = await unlockWithBiometrics(email);
                 setIsBusy(false);
                 if (!unlocked) {
-                  setError('Biometria nao validada. Digite seu PIN de 6 digitos.');
+                  setError(t('vault.errorBiometricFailed'));
                 }
               })();
             }}
@@ -141,7 +143,7 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
         ) : null}
 
         <DSInput
-          label="PIN do Cofre (6 digitos)"
+          label={t('vault.pinLabel')}
           value={pin}
           onChangeText={setPin}
           keyboardType="numeric"
@@ -151,7 +153,7 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
 
         {isCreationMode ? (
           <DSInput
-            label="Confirmar PIN"
+            label={t('vault.pinConfirmLabel')}
             value={confirmPin}
             onChangeText={setConfirmPin}
             keyboardType="numeric"
@@ -162,8 +164,8 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
 
         <View style={styles.switchRow}>
           <View style={styles.switchTextWrap}>
-            <DSText style={styles.switchLabel}>Lembrar meu PIN neste dispositivo</DSText>
-            <DSText style={styles.switchHint}>Quando desativado, a chave fica somente em memoria ate fechar o app.</DSText>
+            <DSText style={styles.switchLabel}>{t('vault.rememberLabel')}</DSText>
+            <DSText style={styles.switchHint}>{t('vault.rememberHint')}</DSText>
           </View>
           <Switch
             value={rememberOnDevice}
@@ -179,9 +181,9 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
 
         <View style={[styles.switchRow, !canToggleBiometric ? styles.switchRowDisabled : null]}>
           <View style={styles.switchTextWrap}>
-            <DSText style={styles.switchLabel}>Habilitar Biometria (FaceID/Digital)</DSText>
+            <DSText style={styles.switchLabel}>{t('vault.biometricLabel')}</DSText>
             <DSText style={styles.switchHint}>
-              A biometria autentica localmente para liberar a chave salva. O PIN continua sendo sua chave mestre.
+              {t('vault.biometricHint')}
             </DSText>
           </View>
           <Switch
@@ -195,13 +197,13 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
         {error ? <DSText style={styles.error}>{error}</DSText> : null}
 
         <DSButton
-          title={isBusy ? 'Processando...' : submitLabel}
+          title={isBusy ? t('vault.processing') : submitLabel}
           onPress={() => void onSubmit()}
           disabled={isBusy || state === 'loading' || state === 'idle'}
           testID="vault-submit-button"
         />
 
-        {state === 'loading' ? <DSText style={styles.loading}>Preparando cofre...</DSText> : null}
+        {state === 'loading' ? <DSText style={styles.loading}>{t('vault.preparing')}</DSText> : null}
       </View>
     </View>
   );

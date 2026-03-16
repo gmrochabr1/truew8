@@ -53,6 +53,11 @@ export type CreatePortfolioInput = {
   description?: string;
 };
 
+export type UpdatePortfolioInput = {
+  name?: string;
+  description?: string;
+};
+
 function toNumber(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -120,6 +125,18 @@ export async function createPortfolio(input: CreatePortfolioInput = {}): Promise
     description: input.description,
   });
   return data;
+}
+
+export async function updatePortfolio(portfolioId: string, input: UpdatePortfolioInput): Promise<PortfolioSummary> {
+  const { data } = await apiClient.patch<PortfolioSummary>(`/portfolio/${portfolioId}`, {
+    name: input.name,
+    description: input.description,
+  });
+  return data;
+}
+
+export async function deletePortfolio(portfolioId: string): Promise<void> {
+  await apiClient.delete(`/portfolio/${portfolioId}`);
 }
 
 export async function getPortfolioHoldings(portfolioId: string): Promise<UserHolding[]> {

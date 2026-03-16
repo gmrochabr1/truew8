@@ -3,18 +3,27 @@ package com.truew8.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.truew8.service.MessageResolver;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.support.StaticMessageSource;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 class AuthRateLimitFilterTest {
 
+    private MessageResolver messageResolver() {
+        StaticMessageSource source = new StaticMessageSource();
+        source.addMessage("rate.limit.auth.attempts", java.util.Locale.ENGLISH,
+                "Too many authentication attempts. Please wait and try again.");
+        return new MessageResolver(source);
+    }
+
     @Test
     void shouldReturnTooManyRequestsWhenAuthAttemptsExceedLimit() throws ServletException, IOException {
-        AuthRateLimitFilter filter = new AuthRateLimitFilter(true, 2, 60);
+        AuthRateLimitFilter filter = new AuthRateLimitFilter(messageResolver(), true, 2, 60);
 
         MockHttpServletRequest firstRequest = new MockHttpServletRequest("POST", "/auth/login");
         firstRequest.setServletPath("/auth/login");
@@ -44,7 +53,7 @@ class AuthRateLimitFilterTest {
 
     @Test
     void shouldNotApplyLimitOutsideProtectedAuthEndpoints() throws ServletException, IOException {
-        AuthRateLimitFilter filter = new AuthRateLimitFilter(true, 1, 60);
+        AuthRateLimitFilter filter = new AuthRateLimitFilter(messageResolver(), true, 1, 60);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/rebalance");
         request.setServletPath("/rebalance");

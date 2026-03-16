@@ -89,3 +89,63 @@ test('persists vault key when remember toggle is enabled', async ({ page }) => {
   expect(profile.rememberPin).toBeTruthy();
   expect(typeof profile.keyFingerprint).toBe('string');
 });
+
+test('requires login before showing vault setup after registration', async ({ page }) => {
+  const email = 'ux.register-login-first@truew8.com';
+  await seedApiRoutes(page);
+
+  await page.route('**/auth/me', async (route) => {
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'unauthorized' }),
+    });
+  });
+
+  await page.route('**/auth/register', async (route) => {
+    const payload = route.request().postDataJSON() as { email?: string };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        email: payload.email ?? email,
+        token: 'register-token',
+      }),
+    });
+  });
+
+  await page.route('**/auth/logout', async (route) => {
+    await route.fulfill({
+      status: 204,
+      contentType: 'application/json',
+      body: '',
+    });
+  });
+
+  await page.route('**/auth/login', async (route) => {
+    const payload = route.request().postDataJSON() as { email?: string };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        email: payload.email ?? email,
+        token: 'login-token',
+      }),
+    });
+  });
+
+  await page.goto('/register');
+
+  await page.getByTestId('register-email-input').fill(email);
+  await page.getByTestId('register-password-input').fill('SenhaForte123');
+  await page.getByTestId('register-submit-button').click();
+
+  await expect(page.getByTestId('login-submit-button')).toBeVisible();
+  await expect(page.getByText('Configurar Cofre')).toHaveCount(0);
+
+  await page.getByTestId('login-email-input').fill(email);
+  await page.getByTestId('login-password-input').fill('SenhaForte123');
+  await page.getByTestId('login-submit-button').click();
+
+  await expect(page.getByText('Configurar Cofre')).toBeVisible();
+});

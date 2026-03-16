@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.support.StaticMessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -28,7 +29,17 @@ class GeminiVisionServiceTest {
 
     @BeforeEach
     void setUp() {
-        geminiVisionService = new GeminiVisionService(geminiApiClient, new ObjectMapper());
+        StaticMessageSource messageSource = new StaticMessageSource();
+        java.util.Locale ptBr = java.util.Locale.forLanguageTag("pt-BR");
+        java.util.Locale enUs = java.util.Locale.forLanguageTag("en-US");
+        messageSource.addMessage("gemini.empty.response", enUs, "Empty Gemini response");
+        messageSource.addMessage("gemini.empty.response", ptBr, "Empty Gemini response");
+        messageSource.addMessage("gemini.response.not.array", enUs, "Gemini response is not a JSON array");
+        messageSource.addMessage("gemini.response.not.array", ptBr, "Gemini response is not a JSON array");
+        messageSource.addMessage("gemini.invalid.json", enUs, "Invalid Gemini JSON response");
+        messageSource.addMessage("gemini.invalid.json", ptBr, "Invalid Gemini JSON response");
+        MessageResolver messages = new MessageResolver(messageSource);
+        geminiVisionService = new GeminiVisionService(geminiApiClient, new ObjectMapper(), messages);
     }
 
     @Test

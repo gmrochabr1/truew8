@@ -4,9 +4,11 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.truew8.service.MessageResolver;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,13 +28,16 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final int maxAttempts;
     private final int windowSeconds;
+    private final MessageResolver messages;
     private final ConcurrentHashMap<String, SlidingWindowCounter> counters = new ConcurrentHashMap<>();
 
     public AuthRateLimitFilter(
+            MessageResolver messages,
             @Value("${app.security.auth-rate-limit.enabled:true}") boolean enabled,
             @Value("${app.security.auth-rate-limit.max-attempts:15}") int maxAttempts,
             @Value("${app.security.auth-rate-limit.window-seconds:60}") int windowSeconds
     ) {
+        this.messages = messages;
         this.enabled = enabled;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.windowSeconds = Math.max(1, windowSeconds);
@@ -68,7 +73,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         if (attempts > maxAttempts) {
             long elapsed = now - counter.windowStartEpochSecond();
             long retryAfterSeconds = Math.max(1, windowSeconds - elapsed);
-            respondRateLimited(response, retryAfterSeconds);
+            respondRateLimited(response, retryAfterSeconds, request.getLocale());
             return;
         }
 
@@ -106,12 +111,13 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private void respondRateLimited(HttpServletResponse response, long retryAfterSeconds) throws IOException {
+    private void respondRateLimited(HttpServletResponse response, long retryAfterSeconds, Locale locale) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
-        response.getWriter().write("{\"errorCode\":\"RATE_LIMITED\",\"message\":\"Too many authentication attempts. Please wait and try again.\"}");
+        String message = messages.getForLocale(locale, "rate.limit.auth.attempts");
+        response.getWriter().write("{\"errorCode\":\"RATE_LIMITED\",\"message\":\"" + message + "\"}");
     }
 
     private record SlidingWindowCounter(long windowStartEpochSecond, AtomicInteger attempts) {

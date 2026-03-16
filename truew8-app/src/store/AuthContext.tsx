@@ -70,12 +70,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [isWeb]);
 
   const register = async (rawEmail: string, password: string) => {
-    const response = await registerRequest({ email: rawEmail.trim(), password });
-    setToken(response.token ?? null);
-    setEmail(response.email);
-    if (response.token) {
-      await saveSession({ token: response.token, email: response.email });
+    await registerRequest({ email: rawEmail.trim(), password });
+    // Registration should not auto-open a signed-in session; login is required afterwards.
+    try {
+      await logoutRequest();
+    } catch {
+      // Local cleanup below is enough when server-side logout is unavailable.
     }
+    setToken(null);
+    setEmail(null);
+    clearActiveVaultKey();
+    await clearSession();
   };
 
   const login = async (rawEmail: string, password: string) => {

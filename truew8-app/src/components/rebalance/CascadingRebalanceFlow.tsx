@@ -4,18 +4,11 @@ import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimension
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
+import { maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
 import { UserHolding } from '@/src/services/portfolio';
 import { calculateRebalance, RebalanceOrder } from '@/src/services/rebalance';
+import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from '@/src/theme/tokens';
-
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
-
-function parseDecimal(value: string): number {
-  return Number(value.replace(',', '.'));
-}
 
 function roundToFour(value: number): number {
   return Math.round(value * 10000) / 10000;
@@ -50,15 +43,16 @@ function getDesktopDrawerWidth(step: 1 | 2 | 3, screenWidth: number): number {
 }
 
 function getMobileDrawerHeight(step: 1 | 2 | 3, screenHeight: number): number {
-  const boundedHeight = Math.max(screenHeight, 540);
+  const visibleTopGap = 72;
+  const maxHeight = Math.max(screenHeight - visibleTopGap, 320);
 
   if (step === 1) {
-    return Math.round(boundedHeight * 0.9);
+    return Math.min(Math.round(screenHeight * 0.78), maxHeight);
   }
   if (step === 2) {
-    return Math.round(boundedHeight * 0.85);
+    return Math.min(Math.round(screenHeight * 0.72), maxHeight);
   }
-  return Math.round(boundedHeight * 0.8);
+  return Math.min(Math.round(screenHeight * 0.66), maxHeight);
 }
 
 type CascadingRebalanceFlowProps = {
@@ -77,6 +71,7 @@ export function CascadingRebalanceFlow({
   loadingHoldings,
 }: CascadingRebalanceFlowProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { t, locale, formatCurrency, formatNumber } = useLocale();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [isRendered, setIsRendered] = useState(isOpen);
   const [deposit, setDeposit] = useState('');
@@ -84,6 +79,7 @@ export function CascadingRebalanceFlow({
   const [requestError, setRequestError] = useState<string | null>(null);
   const [orders, setOrders] = useState<RebalanceOrder[] | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const numberLocale = locale === 'en-US' ? 'en-US' : 'pt-BR';
 
   const availableWidth = useMemo(() => Math.min(screenWidth, windowWidth), [screenWidth, windowWidth]);
   const isMobileLayout = windowWidth < MOBILE_BREAKPOINT;
@@ -147,20 +143,20 @@ export function CascadingRebalanceFlow({
   const targetTickers = useMemo(() => Array.from(tickerPriceMap.keys()), [tickerPriceMap]);
 
   const totalTarget = useMemo(() => {
-    return targetTickers.reduce((sum, ticker) => sum + parseDecimal(targets[ticker] ?? '0'), 0);
-  }, [targetTickers, targets]);
+    return targetTickers.reduce((sum, ticker) => sum + parseLocaleNumber(targets[ticker] ?? '0', numberLocale), 0);
+  }, [targetTickers, targets, numberLocale]);
 
   const groupedOrders = useMemo(() => {
     const groups: Record<string, RebalanceOrder[]> = {};
     (orders ?? []).forEach((order) => {
-      const key = order.brokerage?.trim() ? order.brokerage : 'Sem corretora';
+      const key = order.brokerage?.trim() ? order.brokerage : t('rebalance.noBrokerage');
       if (!groups[key]) {
         groups[key] = [];
       }
       groups[key].push(order);
     });
     return groups;
-  }, [orders]);
+  }, [orders, t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -298,20 +294,20 @@ export function CascadingRebalanceFlow({
     setRequestError(null);
     setOrders(null);
 
-    const parsedDeposit = parseDecimal(deposit);
+    const parsedDeposit = parseLocaleNumber(deposit, numberLocale);
     if (parsedDeposit < 0) {
-      setRequestError('O valor do aporte deve ser maior ou igual a zero.');
+      setRequestError(t('rebalance.errorDeposit'));
       return;
     }
 
     const percentDelta = Math.abs(totalTarget - 100);
     if (percentDelta > 0.01) {
-      setRequestError('A soma dos percentuais alvo deve ser exatamente 100%.');
+      setRequestError(t('rebalance.errorTargetSum'));
       return;
     }
 
     const targetPortfolio = targetTickers.map((ticker) => {
-      const percent = parseDecimal(targets[ticker] ?? '0');
+      const percent = parseLocaleNumber(targets[ticker] ?? '0', numberLocale);
       return {
         ticker,
         percentage: roundToFour(percent / 100),
@@ -321,7 +317,7 @@ export function CascadingRebalanceFlow({
     });
 
     if (targetPortfolio.length === 0) {
-      setRequestError('Adicione ao menos um ativo para calcular o rebalanceamento.');
+      setRequestError(t('rebalance.errorNoAssets'));
       return;
     }
 
@@ -339,7 +335,7 @@ export function CascadingRebalanceFlow({
       });
       setOrders(response.orders ?? []);
     } catch {
-      setRequestError('Nao foi possivel calcular o rebalanceamento agora.');
+      setRequestError(t('rebalance.errorCalc'));
     } finally {
       setIsCalculating(false);
     }
@@ -357,8 +353,8 @@ export function CascadingRebalanceFlow({
     <View style={styles.flowRoot} pointerEvents="box-none">
       <Animated.View
         style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 20, opacity: backdropOpacity },
+          styles.backdropLayer,
+          { opacity: backdropOpacity },
         ]}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -380,18 +376,19 @@ export function CascadingRebalanceFlow({
           ]}
         >
           <ScrollView style={styles.drawerScroll} contentContainerStyle={styles.drawerContent}>
-            <DSText style={styles.stepTitle}>Passo 1: Valor do Aporte (R$)</DSText>
+            <DSText style={styles.stepTitle}>{t('rebalance.step1Title')}</DSText>
             <DSInput
-              label="Aporte"
+              label={t('rebalance.depositInput')}
               value={deposit}
-              onChangeText={setDeposit}
-              keyboardType="numeric"
-              placeholder="Ex.: 1000"
+              onChangeText={(value) => setDeposit(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }))}
+              keyboardType="decimal-pad"
+              placeholder={t('rebalance.depositPlaceholder')}
+              testID="rebalance-deposit-input"
             />
             {requestError && currentStep === 1 ? <DSText style={styles.error}>{requestError}</DSText> : null}
             <View style={styles.drawerActionsRow}>
-              <DSButton title="Fechar" onPress={onClose} />
-              <DSButton title="Continuar" onPress={() => setCurrentStep(2)} testID="rebalance-step-1-continue" />
+              <DSButton title={t('common.close')} onPress={onClose} />
+              <DSButton title={t('common.continue')} onPress={() => setCurrentStep(2)} testID="rebalance-step-1-continue" />
             </View>
           </ScrollView>
         </Animated.View>
@@ -411,39 +408,39 @@ export function CascadingRebalanceFlow({
           ]}
         >
           <ScrollView style={styles.drawerScroll} contentContainerStyle={styles.drawerContent}>
-            <DSText style={styles.stepTitle}>Passo 2: Percentual alvo</DSText>
-            {loadingHoldings ? <DSText style={styles.emptyHint}>Carregando ativos...</DSText> : null}
+            <DSText style={styles.stepTitle}>{t('rebalance.step2Title')}</DSText>
+            {loadingHoldings ? <DSText style={styles.emptyHint}>{t('rebalance.loadingAssets')}</DSText> : null}
             {!loadingHoldings && targetTickers.length === 0 ? (
-              <DSText style={styles.emptyHint}>Nenhum ativo disponivel para configurar alvo.</DSText>
+              <DSText style={styles.emptyHint}>{t('rebalance.emptyAssets')}</DSText>
             ) : null}
             {targetTickers.map((ticker) => (
               <DSInput
                 key={ticker}
-                label={`${ticker} (% alvo)`}
+                label={t('rebalance.targetTickerLabel', { ticker })}
                 value={targets[ticker] ?? ''}
                 onChangeText={(value) =>
                   setTargets((previous) => ({
                     ...previous,
-                    [ticker]: value,
+                    [ticker]: maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }),
                   }))
                 }
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
               />
             ))}
             <View style={styles.totalRow}>
-              <DSText style={styles.totalLabel}>Soma dos percentuais</DSText>
+              <DSText style={styles.totalLabel}>{t('rebalance.totalPercent')}</DSText>
               <DSText
                 style={[
                   styles.totalValue,
                   Math.abs(totalTarget - 100) > 0.01 ? styles.totalInvalid : null,
                 ]}
               >
-                {totalTarget.toFixed(2)}%
+                {formatNumber(totalTarget, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
               </DSText>
             </View>
             <View style={styles.drawerActionsRow}>
-              <DSButton title="Voltar" onPress={() => setCurrentStep(1)} />
-              <DSButton title="Continuar" onPress={() => setCurrentStep(3)} testID="rebalance-step-2-continue" />
+              <DSButton title={t('common.back')} onPress={() => setCurrentStep(1)} />
+              <DSButton title={t('common.continue')} onPress={() => setCurrentStep(3)} testID="rebalance-step-2-continue" />
             </View>
           </ScrollView>
         </Animated.View>
@@ -463,9 +460,9 @@ export function CascadingRebalanceFlow({
           ]}
         >
           <ScrollView style={styles.drawerScroll} contentContainerStyle={styles.drawerContent}>
-            <DSText style={styles.stepTitle}>Passo 3: Boleta Inteligente</DSText>
+            <DSText style={styles.stepTitle}>{t('rebalance.step3Title')}</DSText>
             <DSButton
-              title={isCalculating ? 'Calculando...' : 'Calcular'}
+              title={isCalculating ? t('rebalance.calculating') : t('rebalance.calculate')}
               onPress={() => void onCalculate()}
               disabled={isCalculating}
             />
@@ -479,7 +476,7 @@ export function CascadingRebalanceFlow({
                       <View key={`${brokerage}-${order.ticker}-${index}`} style={styles.orderRow}>
                         <View>
                           <DSText style={styles.orderTicker}>{order.ticker}</DSText>
-                          <DSText style={styles.orderMeta}>Qtd: {order.quantity}</DSText>
+                          <DSText style={styles.orderMeta}>{t('rebalance.quantity', { value: order.quantity })}</DSText>
                         </View>
                         <View style={styles.orderRight}>
                           <DSText
@@ -495,7 +492,7 @@ export function CascadingRebalanceFlow({
                             {order.action}
                           </DSText>
                           <DSText style={styles.orderValue}>
-                            {currencyFormatter.format(order.estimatedValue)}
+                            {formatCurrency(order.estimatedValue)}
                           </DSText>
                         </View>
                       </View>
@@ -505,8 +502,8 @@ export function CascadingRebalanceFlow({
               </View>
             ) : null}
             <View style={styles.drawerActionsRow}>
-              <DSButton title="Voltar" onPress={() => setCurrentStep(2)} />
-              <DSButton title="Fechar" onPress={onClose} />
+              <DSButton title={t('common.back')} onPress={() => setCurrentStep(2)} />
+              <DSButton title={t('common.close')} onPress={onClose} />
             </View>
           </ScrollView>
         </Animated.View>
@@ -521,6 +518,12 @@ const styles = StyleSheet.create({
   },
   drawerLayer: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 30,
+  },
+  backdropLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 20,
   },
   drawerBase: {
     position: 'absolute',

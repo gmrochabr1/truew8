@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
+import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
   Platform,
@@ -13,17 +14,19 @@ import {
 import { AuthLoadingScreen } from "@/src/components/common/AuthLoadingScreen";
 import { DSButton } from "@/src/components/common/DSButton";
 import { DSInput } from "@/src/components/common/DSInput";
-import { t } from "@/src/i18n";
 import { getAuthErrorMessageKey } from "@/src/services/authErrors";
 import { useAuth } from "@/src/store/AuthContext";
+import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from "@/src/theme/tokens";
 
 export default function LoginScreen() {
   const { login, isAuthenticated, isLoading } = useAuth();
+  const { t } = useLocale();
   const router = useRouter();
   const { width: viewportWidth } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState("");
 
   const isCompact = viewportWidth < 640;
@@ -35,7 +38,7 @@ export default function LoginScreen() {
   }, [isAuthenticated, router]);
 
   if (isLoading) {
-    return <AuthLoadingScreen message="Validando sessao..." />;
+    return <AuthLoadingScreen message={t('app.validatingSession')} />;
   }
 
   if (isAuthenticated) {
@@ -90,9 +93,24 @@ export default function LoginScreen() {
             label={t("auth.password")}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!isPasswordVisible}
             autoCapitalize="none"
             testID="login-password-input"
+            rightElement={
+              <Pressable
+                onPress={() => setIsPasswordVisible((current) => !current)}
+                testID="login-password-visibility-toggle"
+                accessibilityRole="button"
+                accessibilityLabel={isPasswordVisible ? t('auth.passwordVisibility.hide') : t('auth.passwordVisibility.show')}
+                style={styles.passwordVisibilityButton}
+              >
+                <Ionicons
+                  name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={theme.colors.primary}
+                />
+              </Pressable>
+            }
           />
 
           <DSButton
@@ -228,5 +246,13 @@ const styles = StyleSheet.create({
     color: theme.colors.danger,
     fontWeight: "700",
     textAlign: "center",
+  },
+  passwordVisibilityButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
 });

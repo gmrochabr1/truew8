@@ -22,10 +22,12 @@ public class GeminiVisionService {
 
     private final GeminiApiClient geminiApiClient;
     private final ObjectMapper objectMapper;
+    private final MessageResolver messages;
 
-    public GeminiVisionService(GeminiApiClient geminiApiClient, ObjectMapper objectMapper) {
+    public GeminiVisionService(GeminiApiClient geminiApiClient, ObjectMapper objectMapper, MessageResolver messages) {
         this.geminiApiClient = geminiApiClient;
         this.objectMapper = objectMapper;
+        this.messages = messages;
     }
 
     public List<OcrHoldingDTO> extractHoldingsFromImage(byte[] imageBytes) {
@@ -39,7 +41,7 @@ public class GeminiVisionService {
 
     List<OcrHoldingDTO> parseGeminiJson(String rawResponse) {
         if (rawResponse == null || rawResponse.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Empty Gemini response");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, messages.get("gemini.empty.response"));
         }
 
         String normalized = stripMarkdownCodeFences(rawResponse.trim());
@@ -47,7 +49,7 @@ public class GeminiVisionService {
         try {
             JsonNode root = objectMapper.readTree(normalized);
             if (!root.isArray()) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Gemini response is not a JSON array");
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, messages.get("gemini.response.not.array"));
             }
 
             Map<String, BigDecimal> aggregated = new LinkedHashMap<>();
@@ -69,7 +71,7 @@ public class GeminiVisionService {
 
             return holdings;
         } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Invalid Gemini JSON response", ex);
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, messages.get("gemini.invalid.json"), ex);
         }
     }
 

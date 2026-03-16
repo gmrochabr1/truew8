@@ -14,19 +14,21 @@ public class OcrService {
 
     private final UserRepository userRepository;
     private final GeminiVisionService geminiVisionService;
+    private final MessageResolver messages;
 
-    public OcrService(UserRepository userRepository, GeminiVisionService geminiVisionService) {
+    public OcrService(UserRepository userRepository, GeminiVisionService geminiVisionService, MessageResolver messages) {
         this.userRepository = userRepository;
         this.geminiVisionService = geminiVisionService;
+        this.messages = messages;
     }
 
     @Transactional
     public List<OcrHoldingDTO> extractHoldingsForUser(String email, byte[] imageBytes, String mimeType) {
         User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.user.not.found")));
 
         if (user.getOcrCount() == null || user.getOcrCount() <= 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "OCR limit reached");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, messages.get("ocr.limit.reached"));
         }
 
         List<OcrHoldingDTO> holdings = geminiVisionService.extractHoldingsFromImage(imageBytes, mimeType);

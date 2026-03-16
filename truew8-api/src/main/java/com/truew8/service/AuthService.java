@@ -18,6 +18,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenRotationService refreshTokenRotationService;
+    private final MessageResolver messages;
     private final long refreshExpirationMs;
 
     public AuthService(
@@ -25,19 +26,21 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             RefreshTokenRotationService refreshTokenRotationService,
+            MessageResolver messages,
             @Value("${app.jwt.refresh-expiration-ms:1209600000}") long refreshExpirationMs
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenRotationService = refreshTokenRotationService;
+        this.messages = messages;
         this.refreshExpirationMs = refreshExpirationMs;
     }
 
     public AuthSession register(AuthRequestDTO request) {
         String normalizedEmail = normalizeEmail(request.email());
         if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, messages.get("auth.email.exists"));
         }
 
         User user = new User();
@@ -52,10 +55,10 @@ public class AuthService {
     public AuthSession login(AuthRequestDTO request) {
         String normalizedEmail = normalizeEmail(request.email());
         User user = userRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.invalid.credentials")));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.invalid.credentials"));
         }
 
         return issueSession(user);
@@ -63,30 +66,30 @@ public class AuthService {
 
     public AuthSession refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing refresh token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.missing.refresh.token"));
         }
 
         UUID userId;
         try {
             userId = jwtService.extractUserId(refreshToken);
         } catch (Exception ex) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.invalid.refresh.token"));
         }
 
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.invalid.refresh.token"));
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.user.not.found")));
 
         if (!jwtService.isRefreshTokenValid(refreshToken, user)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.invalid.refresh.token"));
         }
 
         String refreshTokenId = jwtService.extractRefreshTokenId(refreshToken);
         if (refreshTokenId == null || !refreshTokenRotationService.isCurrent(user.getId(), refreshTokenId)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Expired refresh session");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.expired.refresh.session"));
         }
 
         return issueSession(user);

@@ -3,6 +3,7 @@ package com.truew8.controller;
 import com.truew8.dto.CreateHoldingRequestDTO;
 import com.truew8.dto.CreatePortfolioRequestDTO;
 import com.truew8.dto.PortfolioSummaryDTO;
+import com.truew8.dto.UpdatePortfolioRequestDTO;
 import com.truew8.dto.UserHoldingDTO;
 import com.truew8.entity.AssetType;
 import com.truew8.entity.Market;
@@ -12,10 +13,12 @@ import com.truew8.entity.UserHolding;
 import com.truew8.repository.PortfolioRepository;
 import com.truew8.repository.UserHoldingRepository;
 import com.truew8.repository.UserRepository;
+import com.truew8.service.MessageResolver;
 import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -23,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,20 +37,21 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/portfolio")
 public class PortfolioController {
 
-    private static final String DEFAULT_PORTFOLIO_NAME = "Minha Carteira";
-
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
     private final UserHoldingRepository userHoldingRepository;
+    private final MessageResolver messages;
 
     public PortfolioController(
             UserRepository userRepository,
             PortfolioRepository portfolioRepository,
-            UserHoldingRepository userHoldingRepository
+            UserHoldingRepository userHoldingRepository,
+            MessageResolver messages
     ) {
         this.userRepository = userRepository;
         this.portfolioRepository = portfolioRepository;
         this.userHoldingRepository = userHoldingRepository;
+        this.messages = messages;
     }
 
     @GetMapping
@@ -89,16 +94,76 @@ public class PortfolioController {
     ) {
         User user = resolveUser(authentication);
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found")));
 
         if (!portfolio.getUser().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found"));
         }
 
         List<UserHoldingDTO> response = userHoldingRepository.findByPortfolioId(portfolioId).stream()
                 .map(this::toDto)
                 .toList();
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{portfolioId}")
+    @Transactional
+    public ResponseEntity<PortfolioSummaryDTO> updatePortfolio(
+            @PathVariable UUID portfolioId,
+            @RequestBody(required = false) UpdatePortfolioRequestDTO request,
+            Authentication authentication
+    ) {
+        User user = resolveUser(authentication);
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found")));
+
+        if (!portfolio.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found"));
+        }
+
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("portfolio.request.required"));
+        }
+
+        if (request.name() != null) {
+            String normalizedName = request.name().trim();
+            if (normalizedName.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("portfolio.name.blank"));
+            }
+            portfolio.setName(normalizedName);
+        }
+
+        if (request.description() != null) {
+            String normalizedDescription = request.description().trim();
+            portfolio.setDescription(normalizedDescription.isBlank() ? null : normalizedDescription);
+        }
+
+        Portfolio saved = portfolioRepository.save(portfolio);
+        return ResponseEntity.ok(toPortfolioSummary(saved));
+    }
+
+    @DeleteMapping("/{portfolioId}")
+    @Transactional
+    public ResponseEntity<Void> deletePortfolio(
+            @PathVariable UUID portfolioId,
+            Authentication authentication
+    ) {
+        User user = resolveUser(authentication);
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found")));
+
+        if (!portfolio.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found"));
+        }
+
+        try {
+            userHoldingRepository.deleteAllByPortfolioId(portfolioId);
+            portfolioRepository.deleteById(portfolioId);
+        } catch (DataAccessException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, messages.get("portfolio.delete.failed"), ex);
+        }
+
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{portfolioId}/holdings")
@@ -110,10 +175,10 @@ public class PortfolioController {
     ) {
         User user = resolveUser(authentication);
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found")));
 
         if (!portfolio.getUser().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found"));
         }
 
         UserHolding holding = new UserHolding();
@@ -148,7 +213,7 @@ public class PortfolioController {
     ) {
             UUID userId = resolveUser(authentication).getId();
         UserHolding holding = userHoldingRepository.findByIdAndPortfolioUserId(holdingId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Holding not found"));
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("holding.not.found")));
 
         holding.setIsLocked(!Boolean.TRUE.equals(holding.getIsLocked()));
         return ResponseEntity.ok(toDto(holding));
@@ -156,11 +221,11 @@ public class PortfolioController {
 
     private User resolveUser(Authentication authentication) {
         if (authentication == null || authentication.getName() == null || authentication.getName().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not authenticated");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("user.not.authenticated"));
         }
 
         return userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, messages.get("auth.user.not.found")));
     }
 
     private PortfolioSummaryDTO toPortfolioSummary(Portfolio portfolio) {
@@ -177,10 +242,11 @@ public class PortfolioController {
 
     private String buildDefaultPortfolioName(UUID userId) {
         long count = portfolioRepository.findByUserId(userId).size();
+        String baseName = messages.get("portfolio.default.name");
         if (count == 0) {
-            return DEFAULT_PORTFOLIO_NAME;
+            return baseName;
         }
-        return DEFAULT_PORTFOLIO_NAME + " " + (count + 1);
+        return baseName + " " + (count + 1);
     }
 
     private UserHoldingDTO toDto(UserHolding holding) {

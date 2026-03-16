@@ -2,11 +2,13 @@ package com.truew8.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.truew8.dto.CreateHoldingRequestDTO;
 import com.truew8.dto.PortfolioSummaryDTO;
+import com.truew8.dto.UpdatePortfolioRequestDTO;
 import com.truew8.dto.UserHoldingDTO;
 import com.truew8.entity.AssetType;
 import com.truew8.entity.Market;
@@ -16,6 +18,7 @@ import com.truew8.entity.UserHolding;
 import com.truew8.repository.PortfolioRepository;
 import com.truew8.repository.UserHoldingRepository;
 import com.truew8.repository.UserRepository;
+import com.truew8.service.MessageResolver;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -44,6 +47,9 @@ class PortfolioControllerZeroKnowledgeTest {
 
     @Mock
     private UserHoldingRepository userHoldingRepository;
+
+    @Mock
+    private MessageResolver messages;
 
     @InjectMocks
     private PortfolioController portfolioController;
@@ -118,6 +124,35 @@ class PortfolioControllerZeroKnowledgeTest {
         PortfolioSummaryDTO summary = response.getBody().get(0);
         assertEquals(2, summary.holdingsCount());
         assertEquals(0, BigDecimal.ZERO.compareTo(summary.totalInvested()));
+    }
+
+    @Test
+    void shouldUpdatePortfolioNameForAuthenticatedOwner() {
+        when(portfolioRepository.findById(portfolio.getId())).thenReturn(Optional.of(portfolio));
+        when(portfolioRepository.save(any(Portfolio.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userHoldingRepository.findByPortfolioId(portfolio.getId())).thenReturn(List.of());
+
+        UpdatePortfolioRequestDTO request = new UpdatePortfolioRequestDTO("Carteira Growth", null);
+
+        ResponseEntity<PortfolioSummaryDTO> response = portfolioController.updatePortfolio(
+                portfolio.getId(),
+                request,
+                authentication
+        );
+
+        assertNotNull(response.getBody());
+        assertEquals("Carteira Growth", response.getBody().name());
+        assertEquals("Carteira Growth", portfolio.getName());
+    }
+
+    @Test
+    void shouldDeletePortfolioAndItsHoldingsForAuthenticatedOwner() {
+        when(portfolioRepository.findById(portfolio.getId())).thenReturn(Optional.of(portfolio));
+
+        portfolioController.deletePortfolio(portfolio.getId(), authentication);
+
+        verify(userHoldingRepository).deleteAllByPortfolioId(portfolio.getId());
+        verify(portfolioRepository).deleteById(portfolio.getId());
     }
 
     private UserHolding createHolding(Portfolio owner, String quantity, String averagePrice) {

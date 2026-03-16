@@ -30,6 +30,9 @@ public class UserPreference {
     @Column(name = "base_currency", nullable = false, length = 3)
     private String baseCurrency;
 
+    @Column(name = "locale_preference", length = 10)
+    private String localePreference;
+
     @Column(name = "tolerance_value", nullable = false, precision = 10, scale = 2)
     private BigDecimal toleranceValue;
 
@@ -95,6 +98,14 @@ public class UserPreference {
 
     public void setBaseCurrency(String baseCurrency) {
         this.baseCurrency = baseCurrency;
+    }
+
+    public String getLocalePreference() {
+        return localePreference;
+    }
+
+    public void setLocalePreference(String localePreference) {
+        this.localePreference = localePreference;
     }
 
     public BigDecimal getToleranceValue() {
