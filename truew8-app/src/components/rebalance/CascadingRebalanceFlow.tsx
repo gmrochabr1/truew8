@@ -4,7 +4,7 @@ import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimension
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
-import { maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
+import { getDecimalSeparator, maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
 import { UserHolding } from '@/src/services/portfolio';
 import { calculateRebalance, RebalanceOrder } from '@/src/services/rebalance';
 import { useLocale } from '@/src/store/LocaleContext';
@@ -294,13 +294,14 @@ export function CascadingRebalanceFlow({
       return;
     }
 
+    const decimalSeparator = getDecimalSeparator(numberLocale);
     const equalWeight = (100 / targetTickers.length).toFixed(2);
     const seededTargets: Record<string, string> = {};
     targetTickers.forEach((ticker) => {
-      seededTargets[ticker] = equalWeight;
+      seededTargets[ticker] = equalWeight.replace('.', decimalSeparator);
     });
     setTargets(seededTargets);
-  }, [isOpen, targetTickers]);
+  }, [isOpen, numberLocale, targetTickers]);
 
   const onCalculate = async () => {
     setRequestError(null);
@@ -395,13 +396,18 @@ export function CascadingRebalanceFlow({
               value={deposit}
               onChangeText={(value) => setDeposit(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }))}
               keyboardType="decimal-pad"
+              maxLength={16}
               placeholder={t('rebalance.depositPlaceholder')}
               testID="rebalance-deposit-input"
             />
             {requestError && currentStep === 1 ? <DSText style={styles.error}>{requestError}</DSText> : null}
-            <View style={styles.drawerActionsRow}>
-              <DSButton title={t('common.close')} onPress={onClose} />
-              <DSButton title={t('common.continue')} onPress={() => setCurrentStep(2)} testID="rebalance-step-1-continue" />
+            <View style={[styles.drawerActionsRow, isMobileLayout ? styles.drawerActionsColumn : null]}>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.close')} onPress={onClose} />
+              </View>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.continue')} onPress={() => setCurrentStep(2)} testID="rebalance-step-1-continue" />
+              </View>
             </View>
           </ScrollView>
         </Animated.View>
@@ -439,6 +445,7 @@ export function CascadingRebalanceFlow({
                   }))
                 }
                 keyboardType="decimal-pad"
+                maxLength={8}
               />
             ))}
             <View style={styles.totalRow}>
@@ -452,9 +459,13 @@ export function CascadingRebalanceFlow({
                 {formatNumber(totalTarget, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
               </DSText>
             </View>
-            <View style={styles.drawerActionsRow}>
-              <DSButton title={t('common.back')} onPress={() => setCurrentStep(1)} />
-              <DSButton title={t('common.continue')} onPress={() => setCurrentStep(3)} testID="rebalance-step-2-continue" />
+            <View style={[styles.drawerActionsRow, isMobileLayout ? styles.drawerActionsColumn : null]}>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.back')} onPress={() => setCurrentStep(1)} />
+              </View>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.continue')} onPress={() => setCurrentStep(3)} testID="rebalance-step-2-continue" />
+              </View>
             </View>
           </ScrollView>
         </Animated.View>
@@ -516,9 +527,13 @@ export function CascadingRebalanceFlow({
                 ))}
               </View>
             ) : null}
-            <View style={styles.drawerActionsRow}>
-              <DSButton title={t('common.back')} onPress={() => setCurrentStep(2)} />
-              <DSButton title={t('common.close')} onPress={onClose} />
+            <View style={[styles.drawerActionsRow, isMobileLayout ? styles.drawerActionsColumn : null]}>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.back')} onPress={() => setCurrentStep(2)} />
+              </View>
+              <View style={styles.drawerActionSlot}>
+                <DSButton title={t('common.close')} onPress={onClose} />
+              </View>
             </View>
           </ScrollView>
         </Animated.View>
@@ -606,6 +621,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'space-between',
+  },
+  drawerActionsColumn: {
+    flexDirection: 'column',
+  },
+  drawerActionSlot: {
+    flex: 1,
   },
   emptyHint: {
     color: theme.colors.textMuted,

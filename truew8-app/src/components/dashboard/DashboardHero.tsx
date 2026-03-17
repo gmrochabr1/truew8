@@ -100,13 +100,21 @@ export const DashboardHero = memo(function DashboardHero({
           ]}
         >
           <View style={dashboardStyles.heroIdentityRow}>
-            {!isCompactPortrait && (
-              <View style={[dashboardStyles.heroTitleWrap]}>
-                <DSText style={[dashboardStyles.title]}>
-                  {t("dashboard.title")}
-                </DSText>
-              </View>
-            )}
+            <View
+              style={[
+                dashboardStyles.heroTitleWrap,
+                isCompactPortrait ? dashboardStyles.heroTitleWrapCompact : null,
+              ]}
+            >
+              <DSText
+                style={[
+                  dashboardStyles.title,
+                  isCompactPortrait ? dashboardStyles.titleMobile : null,
+                ]}
+              >
+                {t("dashboard.title")}
+              </DSText>
+            </View>
           </View>
 
           <View

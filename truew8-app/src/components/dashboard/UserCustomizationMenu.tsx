@@ -176,6 +176,7 @@ export const UserCustomizationMenu = memo(function UserCustomizationMenu({
                     }));
                   }}
                   keyboardType="decimal-pad"
+                  maxLength={6}
                   testID="dashboard-pref-tolerance"
                 />
 

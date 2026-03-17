@@ -145,8 +145,9 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
         <DSInput
           label={t('vault.pinLabel')}
           value={pin}
-          onChangeText={setPin}
+          onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))}
           keyboardType="numeric"
+          maxLength={6}
           secureTextEntry
           testID="vault-pin-input"
         />
@@ -155,8 +156,9 @@ export function VaultGuard({ email, children }: VaultGuardProps) {
           <DSInput
             label={t('vault.pinConfirmLabel')}
             value={confirmPin}
-            onChangeText={setConfirmPin}
+            onChangeText={(value) => setConfirmPin(value.replace(/\D/g, '').slice(0, 6))}
             keyboardType="numeric"
+            maxLength={6}
             secureTextEntry
             testID="vault-pin-confirm-input"
           />

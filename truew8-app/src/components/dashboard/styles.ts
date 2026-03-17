@@ -218,7 +218,7 @@ export const dashboardStyles = StyleSheet.create({
   popoverRoot: {
     flex: 1,
     ...Platform.select({
-      web: { position: "fixed" },
+      web: { position: "fixed", top: 0, right: 0, bottom: 0, left: 0 },
       default: {},
     }),
   },
@@ -360,6 +360,12 @@ export const dashboardStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: theme.spacing.sm,
+  },
+  createDrawerActionsMobile: {
+    flexDirection: "column",
+  },
+  createDrawerActionSlot: {
+    flex: 1,
   },
   userMenuContent: {
     padding: theme.spacing.sm,

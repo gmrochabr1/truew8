@@ -11,6 +11,7 @@ type DSInputProps = {
   keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'number-pad';
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  maxLength?: number;
   testID?: string;
   rightElement?: React.ReactNode;
 };
@@ -23,6 +24,7 @@ export function DSInput({
   keyboardType = 'default',
   secureTextEntry = false,
   autoCapitalize = 'sentences',
+  maxLength = 160,
   testID,
   rightElement,
 }: DSInputProps) {
@@ -40,6 +42,7 @@ export function DSInput({
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry}
           autoCapitalize={autoCapitalize}
+          maxLength={maxLength}
           placeholderTextColor={theme.colors.textMuted}
         />
         {rightElement ? <View style={styles.rightElement}>{rightElement}</View> : null}

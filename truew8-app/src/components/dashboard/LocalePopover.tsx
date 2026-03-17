@@ -56,7 +56,10 @@ export const LocalePopover = memo(function LocalePopover({
               <Pressable
                 key={itemLocale}
                 style={[dashboardStyles.localeMenuItem, isActive ? dashboardStyles.localeMenuItemActive : null]}
-                onPress={() => onSelect(itemLocale)}
+                onPress={() => {
+                  onClose();
+                  onSelect(itemLocale);
+                }}
                 testID={itemLocale === "pt-BR" ? "dashboard-locale-ptBR" : "dashboard-locale-enUS"}
               >
                 <DSText style={dashboardStyles.localeFlag}>{localeFlags[itemLocale]}</DSText>

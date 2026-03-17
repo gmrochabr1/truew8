@@ -83,19 +83,29 @@ export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
             value={newPortfolioName}
             onChangeText={onChangeName}
             placeholder={t("dashboard.createPortfolio.placeholder")}
+            maxLength={80}
             testID="dashboard-create-portfolio-name"
           />
 
           {createPortfolioError ? <DSText style={dashboardStyles.error}>{createPortfolioError}</DSText> : null}
 
-          <View style={dashboardStyles.createDrawerActions}>
-            <DSButton title={t("common.cancel")} onPress={onCancel} />
-            <DSButton
-              title={creatingPortfolio ? t("dashboard.createPortfolio.creating") : t("dashboard.createPortfolio.confirm")}
-              onPress={onConfirm}
-              testID="dashboard-create-portfolio-confirm"
-              disabled={creatingPortfolio}
-            />
+          <View
+            style={[
+              dashboardStyles.createDrawerActions,
+              isCompactPortrait ? dashboardStyles.createDrawerActionsMobile : null,
+            ]}
+          >
+            <View style={dashboardStyles.createDrawerActionSlot}>
+              <DSButton title={t("common.cancel")} onPress={onCancel} />
+            </View>
+            <View style={dashboardStyles.createDrawerActionSlot}>
+              <DSButton
+                title={creatingPortfolio ? t("dashboard.createPortfolio.creating") : t("dashboard.createPortfolio.confirm")}
+                onPress={onConfirm}
+                testID="dashboard-create-portfolio-confirm"
+                disabled={creatingPortfolio}
+              />
+            </View>
           </View>
         </ScrollView>
       </Animated.View>

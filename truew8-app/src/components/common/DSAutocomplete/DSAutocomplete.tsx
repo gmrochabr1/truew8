@@ -261,6 +261,7 @@ export function DSAutocomplete<T extends Record<string, any>>({
                 value={inputValue}
                 onChangeText={() => {}}
                 placeholder={placeholder}
+                maxLength={120}
                 rightElement={rightElement}
                 testID={testID}
               />
@@ -273,6 +274,7 @@ export function DSAutocomplete<T extends Record<string, any>>({
           value={inputValue}
           onChangeText={handleTextChange}
           placeholder={placeholder}
+          maxLength={120}
           testID={testID}
           rightElement={rightElement}
         />

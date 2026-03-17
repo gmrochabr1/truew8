@@ -79,6 +79,7 @@ export function DSMobileModal<T>({
             value={inputValue}
             onChangeText={onInputChange}
             placeholder={placeholder || "Buscar"}
+            maxLength={120}
             testID="autocomplete-mobile-input"
           />
         </View>

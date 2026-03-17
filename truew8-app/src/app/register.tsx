@@ -76,6 +76,7 @@ export default function RegisterScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            maxLength={160}
             testID="register-email-input"
           />
           <DSInput
@@ -84,6 +85,7 @@ export default function RegisterScreen() {
             onChangeText={setPassword}
             secureTextEntry={!isPasswordVisible}
             autoCapitalize="none"
+            maxLength={72}
             testID="register-password-input"
             rightElement={
               <Pressable

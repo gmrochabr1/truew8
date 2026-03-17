@@ -543,10 +543,37 @@ export default function PortfolioDetailScreen() {
               >
                 <ScrollView style={styles.manualDrawerScroll} contentContainerStyle={styles.manualDrawerContent}>
                   <DSText style={styles.manualDrawerTitle}>{t('portfolio.newAsset')}</DSText>
-                  <DSInput label={t('portfolio.ticker')} value={ticker} onChangeText={setTicker} autoCapitalize="characters" testID="manual-ticker" />
-                  <DSInput label={t('portfolio.quantityInput')} value={quantity} onChangeText={onQuantityChange} keyboardType="decimal-pad" testID="manual-quantity" />
-                  <DSInput label={t('portfolio.averagePriceInput')} value={averagePrice} onChangeText={onAveragePriceChange} keyboardType="decimal-pad" testID="manual-average-price" />
-                  <DSInput label={t('portfolio.brokerageInput')} value={brokerage} onChangeText={setBrokerage} testID="manual-brokerage" />
+                  <DSInput
+                    label={t('portfolio.ticker')}
+                    value={ticker}
+                    onChangeText={setTicker}
+                    autoCapitalize="characters"
+                    maxLength={12}
+                    testID="manual-ticker"
+                  />
+                  <DSInput
+                    label={t('portfolio.quantityInput')}
+                    value={quantity}
+                    onChangeText={onQuantityChange}
+                    keyboardType="decimal-pad"
+                    maxLength={20}
+                    testID="manual-quantity"
+                  />
+                  <DSInput
+                    label={t('portfolio.averagePriceInput')}
+                    value={averagePrice}
+                    onChangeText={onAveragePriceChange}
+                    keyboardType="decimal-pad"
+                    maxLength={16}
+                    testID="manual-average-price"
+                  />
+                  <DSInput
+                    label={t('portfolio.brokerageInput')}
+                    value={brokerage}
+                    onChangeText={setBrokerage}
+                    maxLength={64}
+                    testID="manual-brokerage"
+                  />
 
                   {formError ? <DSText style={styles.error}>{formError}</DSText> : null}
 
@@ -596,6 +623,7 @@ export default function PortfolioDetailScreen() {
                     value={editedPortfolioName}
                     onChangeText={setEditedPortfolioName}
                     placeholder={t('portfolio.namePlaceholder')}
+                    maxLength={80}
                     testID="portfolio-edit-name-input"
                   />
 

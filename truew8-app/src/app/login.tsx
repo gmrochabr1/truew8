@@ -87,6 +87,7 @@ export default function LoginScreen() {
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
+            maxLength={160}
             testID="login-email-input"
           />
           <DSInput
@@ -95,6 +96,7 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             secureTextEntry={!isPasswordVisible}
             autoCapitalize="none"
+            maxLength={72}
             testID="login-password-input"
             rightElement={
               <Pressable
