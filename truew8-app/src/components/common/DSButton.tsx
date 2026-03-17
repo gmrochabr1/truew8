@@ -22,9 +22,12 @@ const styles = StyleSheet.create({
   button: {
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.primary,
+    minHeight: 44,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   buttonDisabled: {
     opacity: 0.5,

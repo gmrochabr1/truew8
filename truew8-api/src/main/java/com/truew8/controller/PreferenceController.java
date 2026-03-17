@@ -1,6 +1,8 @@
 package com.truew8.controller;
 
+import com.truew8.dto.CustomizationPreferenceResponseDTO;
 import com.truew8.dto.LocalePreferenceResponseDTO;
+import com.truew8.dto.UpdateCustomizationPreferenceRequestDTO;
 import com.truew8.dto.UpdateLocalePreferenceRequestDTO;
 import com.truew8.entity.Market;
 import com.truew8.entity.User;
@@ -28,6 +30,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/preferences")
 public class PreferenceController {
+
+    private static final List<String> AVAILABLE_BASE_CURRENCIES = List.of("BRL", "USD");
+    private static final List<String> AVAILABLE_THEMES = List.of("LIGHT", "DARK");
 
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
@@ -93,6 +98,59 @@ public class PreferenceController {
             : detectAutoLocale(availableLocales, LocaleContextHolder.getLocale());
 
         return ResponseEntity.ok(new LocalePreferenceResponseDTO(selectedLocale, effectiveLocale, availableLocales));
+    }
+
+    @GetMapping("/customization")
+    @Transactional
+    public ResponseEntity<CustomizationPreferenceResponseDTO> getCustomizationPreference(Authentication authentication) {
+        User user = resolveUser(authentication);
+        UserPreference preference = ensurePreference(user);
+
+        return ResponseEntity.ok(toCustomizationResponse(preference));
+    }
+
+    @PutMapping("/customization")
+    @Transactional
+    public ResponseEntity<CustomizationPreferenceResponseDTO> updateCustomizationPreference(
+            @RequestBody(required = false) UpdateCustomizationPreferenceRequestDTO request,
+            Authentication authentication
+    ) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("preferences.payload.required"));
+        }
+
+        User user = resolveUser(authentication);
+        UserPreference preference = ensurePreference(user);
+
+        if (request.baseCurrency() != null && !request.baseCurrency().isBlank()) {
+            String normalizedCurrency = request.baseCurrency().trim().toUpperCase(Locale.ROOT);
+            if (!AVAILABLE_BASE_CURRENCIES.contains(normalizedCurrency)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("preferences.base.currency.invalid"));
+            }
+            preference.setBaseCurrency(normalizedCurrency);
+        }
+
+        if (request.toleranceValue() != null) {
+            if (request.toleranceValue().signum() < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("preferences.tolerance.invalid"));
+            }
+            preference.setToleranceValue(request.toleranceValue());
+        }
+
+        if (request.allowSells() != null) {
+            preference.setAllowSells(request.allowSells());
+        }
+
+        if (request.theme() != null && !request.theme().isBlank()) {
+            String normalizedTheme = request.theme().trim().toUpperCase(Locale.ROOT);
+            if (!AVAILABLE_THEMES.contains(normalizedTheme)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, messages.get("preferences.theme.invalid"));
+            }
+            preference.setTheme(normalizedTheme);
+        }
+
+        UserPreference saved = userPreferenceRepository.save(preference);
+        return ResponseEntity.ok(toCustomizationResponse(saved));
     }
 
     private UserPreference ensurePreference(User user) {
@@ -164,5 +222,30 @@ public class PreferenceController {
             return "en-US";
         }
         return null;
+    }
+
+    private CustomizationPreferenceResponseDTO toCustomizationResponse(UserPreference preference) {
+        String baseCurrency = preference.getBaseCurrency();
+        if (baseCurrency == null || !AVAILABLE_BASE_CURRENCIES.contains(baseCurrency.toUpperCase(Locale.ROOT))) {
+            baseCurrency = "BRL";
+        } else {
+            baseCurrency = baseCurrency.toUpperCase(Locale.ROOT);
+        }
+
+        String theme = preference.getTheme();
+        if (theme == null || !AVAILABLE_THEMES.contains(theme.toUpperCase(Locale.ROOT))) {
+            theme = "LIGHT";
+        } else {
+            theme = theme.toUpperCase(Locale.ROOT);
+        }
+
+        return new CustomizationPreferenceResponseDTO(
+                baseCurrency,
+                preference.getToleranceValue(),
+                preference.getAllowSells(),
+                theme,
+                AVAILABLE_BASE_CURRENCIES,
+                AVAILABLE_THEMES
+        );
     }
 }

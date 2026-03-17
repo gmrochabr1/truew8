@@ -9,12 +9,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.truew8.dto.LocalePreferenceResponseDTO;
+import com.truew8.dto.CustomizationPreferenceResponseDTO;
+import com.truew8.dto.UpdateCustomizationPreferenceRequestDTO;
 import com.truew8.dto.UpdateLocalePreferenceRequestDTO;
 import com.truew8.entity.User;
 import com.truew8.entity.UserPreference;
 import com.truew8.repository.UserPreferenceRepository;
 import com.truew8.repository.UserRepository;
 import com.truew8.service.MessageResolver;
+import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,6 +54,10 @@ class PreferenceControllerTest {
         source.addMessage("locale.invalid", Locale.ENGLISH, "Locale is not supported for available markets");
         source.addMessage("user.not.authenticated", Locale.ENGLISH, "User not authenticated");
         source.addMessage("auth.user.not.found", Locale.ENGLISH, "User not found");
+        source.addMessage("preferences.payload.required", Locale.ENGLISH, "Customization payload is required");
+        source.addMessage("preferences.base.currency.invalid", Locale.ENGLISH, "Base currency is not supported");
+        source.addMessage("preferences.tolerance.invalid", Locale.ENGLISH, "Tolerance value must be non-negative");
+        source.addMessage("preferences.theme.invalid", Locale.ENGLISH, "Theme is not supported");
 
         MessageResolver messages = new MessageResolver(source);
         preferenceController = new PreferenceController(userRepository, userPreferenceRepository, messages);
@@ -113,5 +120,72 @@ class PreferenceControllerTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         assertEquals("Locale is not supported for available markets", exception.getReason());
+    }
+
+    @Test
+    void shouldReturnCustomizationDefaultsAndAvailableOptions() {
+        UserPreference preference = new UserPreference();
+        preference.setUser(user);
+        preference.setBaseCurrency("BRL");
+        preference.setToleranceValue(new BigDecimal("10.00"));
+        preference.setAllowSells(true);
+        preference.setTheme("LIGHT");
+
+        when(userPreferenceRepository.findByUserId(user.getId())).thenReturn(Optional.of(preference));
+
+        ResponseEntity<CustomizationPreferenceResponseDTO> response =
+                preferenceController.getCustomizationPreference(authentication);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("BRL", response.getBody().baseCurrency());
+        assertEquals(new BigDecimal("10.00"), response.getBody().toleranceValue());
+        assertTrue(response.getBody().allowSells());
+        assertEquals("LIGHT", response.getBody().theme());
+        assertTrue(response.getBody().availableBaseCurrencies().contains("USD"));
+        assertTrue(response.getBody().availableThemes().contains("DARK"));
+    }
+
+    @Test
+    void shouldUpdateCustomizationPreference() {
+        UserPreference preference = new UserPreference();
+        preference.setUser(user);
+        preference.setBaseCurrency("BRL");
+        preference.setToleranceValue(new BigDecimal("10.00"));
+        preference.setAllowSells(true);
+        preference.setTheme("LIGHT");
+
+        when(userPreferenceRepository.findByUserId(user.getId())).thenReturn(Optional.of(preference));
+        when(userPreferenceRepository.save(any(UserPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ResponseEntity<CustomizationPreferenceResponseDTO> response = preferenceController.updateCustomizationPreference(
+                new UpdateCustomizationPreferenceRequestDTO("USD", new BigDecimal("7.50"), false, "DARK"),
+                authentication
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("USD", response.getBody().baseCurrency());
+        assertEquals(new BigDecimal("7.50"), response.getBody().toleranceValue());
+        assertEquals(false, response.getBody().allowSells());
+        assertEquals("DARK", response.getBody().theme());
+    }
+
+    @Test
+    void shouldRejectInvalidCustomizationCurrency() {
+        UserPreference preference = new UserPreference();
+        preference.setUser(user);
+        when(userPreferenceRepository.findByUserId(user.getId())).thenReturn(Optional.of(preference));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> preferenceController.updateCustomizationPreference(
+                        new UpdateCustomizationPreferenceRequestDTO("EUR", new BigDecimal("5.00"), true, "LIGHT"),
+                        authentication
+                )
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("Base currency is not supported", exception.getReason());
     }
 }

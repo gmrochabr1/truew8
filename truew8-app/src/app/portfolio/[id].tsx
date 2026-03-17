@@ -89,6 +89,20 @@ export default function PortfolioDetailScreen() {
     return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 320));
   }, [isCompactPortrait, screenHeight]);
 
+  const portfolioDrawerTopInset = useMemo(() => {
+    if (!isCompactPortrait || !portfolioDrawerHeight) {
+      return undefined;
+    }
+    return Math.max(screenHeight - portfolioDrawerHeight, 56);
+  }, [isCompactPortrait, portfolioDrawerHeight, screenHeight]);
+
+  const manualDrawerTopInset = useMemo(() => {
+    if (!isCompactPortrait || !manualDrawerHeight) {
+      return undefined;
+    }
+    return Math.max(screenHeight - manualDrawerHeight, 56);
+  }, [isCompactPortrait, manualDrawerHeight, screenHeight]);
+
   const animationStart = useMemo(
     () => (isCompactPortrait ? Math.max(screenHeight, 640) : Math.max(screenWidth, 1024)),
     [isCompactPortrait, screenHeight, screenWidth],
@@ -436,6 +450,7 @@ export default function PortfolioDetailScreen() {
           {
             width: drawerWidth,
             height: portfolioDrawerHeight ?? '100%',
+            top: isCompactPortrait ? portfolioDrawerTopInset : 0,
             transform: getDrawerTransform(drawerTranslate),
           },
         ]}
@@ -521,6 +536,7 @@ export default function PortfolioDetailScreen() {
                   {
                     width: manualDrawerWidth,
                     height: manualDrawerHeight ?? '100%',
+                    top: isCompactPortrait ? manualDrawerTopInset : 0,
                     transform: getDrawerTransform(manualDrawerTranslate),
                   },
                 ]}
@@ -568,6 +584,7 @@ export default function PortfolioDetailScreen() {
                   {
                     width: manualDrawerWidth,
                     height: manualDrawerHeight ?? '100%',
+                    top: isCompactPortrait ? manualDrawerTopInset : 0,
                     transform: getDrawerTransform(editNameDrawerTranslate),
                   },
                 ]}
@@ -639,7 +656,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 15, 35, 0.52)',
   },
   drawerShell: {
-    flex: 1,
+    position: 'absolute',
     overflow: 'hidden',
   },
   drawerShellDesktop: {

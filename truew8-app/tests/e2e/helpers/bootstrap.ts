@@ -180,6 +180,54 @@ export const seedApiRoutes = async (page: Page) => {
 
     await route.continue();
   });
+
+  let customization = {
+    baseCurrency: 'BRL',
+    toleranceValue: 10,
+    allowSells: true,
+    theme: 'LIGHT',
+    availableBaseCurrencies: ['BRL', 'USD'],
+    availableThemes: ['LIGHT', 'DARK'],
+  };
+
+  await page.route('**/preferences/customization', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(customization),
+      });
+      return;
+    }
+
+    if (method === 'PUT') {
+      const payload = route.request().postDataJSON() as {
+        baseCurrency?: string;
+        toleranceValue?: number;
+        allowSells?: boolean;
+        theme?: string;
+      };
+
+      customization = {
+        ...customization,
+        baseCurrency: payload.baseCurrency === 'USD' ? 'USD' : 'BRL',
+        toleranceValue: Number.isFinite(payload.toleranceValue) ? Number(payload.toleranceValue) : customization.toleranceValue,
+        allowSells: typeof payload.allowSells === 'boolean' ? payload.allowSells : customization.allowSells,
+        theme: payload.theme === 'DARK' ? 'DARK' : 'LIGHT',
+      };
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(customization),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
 };
 
 export const authenticate = async (page: Page, email: string) => {

@@ -21,17 +21,40 @@
       ],
       "expo-modules-core/*": [
         "src/types/expo-modules-core-stub.d.ts"
+      ],
+      "expo-font": [
+        "src/types/expo-font-stub.d.ts"
+      ],
+      "expo-font/*": [
+        "src/types/expo-font-stub.d.ts"
+      ],
+      "expo-image": [
+        "src/types/expo-image-stub.d.ts"
+      ],
+      "expo-image/*": [
+        "src/types/expo-image-stub.d.ts"
+      ],
+      "expo-symbols": [
+        "src/types/expo-symbols-stub.d.ts"
+      ],
+      "expo-symbols/*": [
+        "src/types/expo-symbols-stub.d.ts"
       ]
     }
   },
   "include": [
     "src/**/*.d.ts",
+    "src/app/**/*.ts",
+    "src/app/**/*.tsx",
     "src/components/**/*.ts",
+    "src/components/**/*.tsx",
     "src/services/**/*.ts",
     "src/store/**/*.ts",
+    "src/store/**/*.tsx",
     "src/i18n/**/*.ts",
     "src/theme/**/*.ts",
     "tests/**/*.ts",
+    "tests/**/*.tsx",
     "expo-env.d.ts"
   ]
 }

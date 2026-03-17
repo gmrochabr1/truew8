@@ -45,7 +45,6 @@ function getDesktopDrawerWidth(step: 1 | 2 | 3, screenWidth: number): number {
 function getMobileDrawerHeight(step: 1 | 2 | 3, screenHeight: number): number {
   const visibleTopGap = 72;
   const maxHeight = Math.max(screenHeight - visibleTopGap, 320);
-
   if (step === 1) {
     return Math.min(Math.round(screenHeight * 0.78), maxHeight);
   }
@@ -118,6 +117,19 @@ export function CascadingRebalanceFlow({
   const drawerThreeHeight = useMemo(
     () => (isMobileLayout ? getMobileDrawerHeight(3, windowHeight) : undefined),
     [isMobileLayout, windowHeight],
+  );
+
+  const drawerOneTopInset = useMemo(
+    () => (isMobileLayout && drawerOneHeight ? Math.max(windowHeight - drawerOneHeight, 56) : undefined),
+    [drawerOneHeight, isMobileLayout, windowHeight],
+  );
+  const drawerTwoTopInset = useMemo(
+    () => (isMobileLayout && drawerTwoHeight ? Math.max(windowHeight - drawerTwoHeight, 56) : undefined),
+    [drawerTwoHeight, isMobileLayout, windowHeight],
+  );
+  const drawerThreeTopInset = useMemo(
+    () => (isMobileLayout && drawerThreeHeight ? Math.max(windowHeight - drawerThreeHeight, 56) : undefined),
+    [drawerThreeHeight, isMobileLayout, windowHeight],
   );
 
   const tickerPriceMap = useMemo(() => {
@@ -370,6 +382,7 @@ export function CascadingRebalanceFlow({
             {
               width: drawerOneWidth,
               height: drawerOneHeight ?? '100%',
+              top: drawerOneTopInset,
               zIndex: 30,
               transform: getDrawerTransform(step1Translate),
             },
@@ -402,6 +415,7 @@ export function CascadingRebalanceFlow({
             {
               width: drawerTwoWidth,
               height: drawerTwoHeight ?? '100%',
+              top: drawerTwoTopInset,
               zIndex: 31,
               transform: getDrawerTransform(step2Translate),
             },
@@ -454,6 +468,7 @@ export function CascadingRebalanceFlow({
             {
               width: drawerThreeWidth,
               height: drawerThreeHeight ?? '100%',
+              top: drawerThreeTopInset,
               zIndex: 32,
               transform: getDrawerTransform(step3Translate),
             },

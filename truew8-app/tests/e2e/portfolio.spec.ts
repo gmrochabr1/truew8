@@ -26,12 +26,36 @@ test('switches locale globally from dashboard', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByText('Visao Consolidada')).toBeVisible();
+  await page.getByTestId('dashboard-locale-menu-trigger').click();
+  await expect(page.getByTestId('dashboard-locale-popover')).toBeVisible();
   await page.getByTestId('dashboard-locale-enUS').click();
   await expect(page.getByText('Consolidated View')).toBeVisible();
-  await expect(page.getByText('Sign out')).toBeVisible();
+  await expect(page.getByTestId('dashboard-header-logout')).toBeVisible();
 
+  await page.getByTestId('dashboard-locale-menu-trigger').click();
   await page.getByTestId('dashboard-locale-ptBR').click();
   await expect(page.getByText('Visao Consolidada')).toBeVisible();
+});
+
+test('opens user personalization menu and persists selected options', async ({ page }) => {
+  const email = 'ux.preferences@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  await page.getByTestId('dashboard-user-menu-trigger').click();
+  await expect(page.getByTestId('dashboard-user-menu-popover')).toBeVisible();
+
+  await expect(page.getByTestId('dashboard-pref-base-currency')).toBeVisible();
+
+  await page.getByTestId('dashboard-pref-tolerance').fill('7.5');
+  await page.getByTestId('dashboard-pref-allow-sells').click();
+
+  await expect(page.getByTestId('dashboard-pref-theme')).toBeVisible();
+
+  await page.getByTestId('dashboard-pref-save').click();
+  await expect(page.getByTestId('dashboard-user-menu-popover')).toHaveCount(0);
 });
 
 test('moves logout to dashboard top bar and logs out', async ({ page }) => {
@@ -44,6 +68,29 @@ test('moves logout to dashboard top bar and logs out', async ({ page }) => {
   await expect(page.getByTestId('dashboard-header-logout')).toBeVisible();
   await page.getByTestId('dashboard-header-logout').click();
   await expect(page.getByTestId('login-submit-button')).toBeVisible();
+});
+
+test('keeps user, locale and logout controls aligned in hero', async ({ page }) => {
+  const email = 'ux.hero-actions@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  const userButton = page.getByTestId('dashboard-user-menu-trigger');
+  const logoutButton = page.getByTestId('dashboard-header-logout');
+  const localeTrigger = page.getByTestId('dashboard-locale-menu-trigger');
+
+  const userBox = await userButton.boundingBox();
+  const logoutBox = await logoutButton.boundingBox();
+  const localeBox = await localeTrigger.boundingBox();
+
+  expect(userBox).not.toBeNull();
+  expect(logoutBox).not.toBeNull();
+  expect(localeBox).not.toBeNull();
+  expect((userBox?.x ?? 0)).toBeLessThan(localeBox?.x ?? 0);
+  expect((localeBox?.x ?? 0)).toBeLessThan(logoutBox?.x ?? 0);
+  expect(Math.abs((localeBox?.y ?? 0) - (logoutBox?.y ?? 0))).toBeLessThanOrEqual(2);
 });
 
 test('creates a new portfolio, opens detail with name and keeps dashboard list updated', async ({ page }) => {
@@ -148,6 +195,27 @@ test('adds manual holding using drawer flow', async ({ page }) => {
 
 test.use({ viewport: { width: 390, height: 844 } });
 
+test('keeps hero title readable on compact portrait without vertical wrapping', async ({ page }) => {
+  const email = 'ux.mobile-hero@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  const title = page.getByText('Visao Consolidada');
+  await expect(title).toBeVisible();
+
+  const titleBox = await title.boundingBox();
+  expect(titleBox).not.toBeNull();
+  expect(titleBox?.height ?? 0).toBeLessThan(140);
+
+  const logoutBox = await page.getByTestId('dashboard-header-logout').boundingBox();
+  const localeBox = await page.getByTestId('dashboard-locale-menu-trigger').boundingBox();
+  expect(logoutBox).not.toBeNull();
+  expect(localeBox).not.toBeNull();
+  expect((localeBox?.y ?? 0)).toBeGreaterThanOrEqual(logoutBox?.y ?? 0);
+});
+
 test('opens drawers from bottom on compact portrait screens without covering entire dashboard', async ({ page }) => {
   const email = 'ux.mobile-drawer@truew8.com';
   await seedApiRoutes(page);
@@ -195,4 +263,23 @@ test('opens drawers from bottom on compact portrait screens without covering ent
 
   await page.getByTestId('rebalance-deposit-input').fill('1000');
   await expect(page.getByTestId('rebalance-deposit-input')).toHaveValue('1000');
+});
+
+test('applies floating-point mask according to selected locale in value fields', async ({ page }) => {
+  const email = 'ux.locale-mask@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  await page.getByTestId('dashboard-locale-menu-trigger').click();
+  await page.getByTestId('dashboard-locale-enUS').click();
+
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+
+  await page.getByTestId('manual-quantity').fill('10,25');
+  await page.getByTestId('manual-average-price').fill('45,9xx');
+  await expect(page.getByTestId('manual-quantity')).toHaveValue('10.25');
+  await expect(page.getByTestId('manual-average-price')).toHaveValue('45.9');
 });

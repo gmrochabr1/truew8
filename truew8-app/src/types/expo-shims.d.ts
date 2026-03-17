@@ -3,6 +3,11 @@ declare module 'react-native/Libraries/Image/AssetSourceResolver' {
   export default AssetSourceResolver;
 }
 
+declare module 'react-native/Libraries/Image/resolveAssetSource' {
+  const resolveAssetSource: any;
+  export default resolveAssetSource;
+}
+
 declare module '@react-native/assets-registry/registry' {
   export type PackagerAsset = {
     scales: number[];

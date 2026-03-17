@@ -1,0 +1,104 @@
+import React, { memo } from "react";
+import { Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
+
+import { DSButton } from "@/src/components/common/DSButton";
+import { DSInput } from "@/src/components/common/DSInput";
+import { DSText } from "@/src/components/common/DSText";
+import { TranslationKey } from "@/src/i18n";
+
+import { dashboardStyles } from "./styles";
+
+type CreatePortfolioDrawerProps = {
+  isRendered: boolean;
+  isCompactPortrait: boolean;
+  createBackdropOpacity: Animated.Value;
+  createDrawerTranslate: Animated.Value;
+  createDrawerWidth: number;
+  createDrawerHeight?: number;
+  createDrawerTopInset?: number;
+  newPortfolioName: string;
+  onChangeName: (value: string) => void;
+  createPortfolioError: string | null;
+  creatingPortfolio: boolean;
+  t: (key: TranslationKey) => string;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
+  isRendered,
+  isCompactPortrait,
+  createBackdropOpacity,
+  createDrawerTranslate,
+  createDrawerWidth,
+  createDrawerHeight,
+  createDrawerTopInset,
+  newPortfolioName,
+  onChangeName,
+  createPortfolioError,
+  creatingPortfolio,
+  t,
+  onCancel,
+  onConfirm,
+}: CreatePortfolioDrawerProps) {
+  if (!isRendered) {
+    return null;
+  }
+
+  return (
+    <View style={dashboardStyles.createDrawerRoot} pointerEvents="box-none">
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            opacity: createBackdropOpacity,
+            zIndex: 20,
+          },
+        ]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+      </Animated.View>
+
+      <Animated.View
+        testID="dashboard-create-portfolio-drawer"
+        style={[
+          dashboardStyles.createDrawerShell,
+          isCompactPortrait ? dashboardStyles.createDrawerShellMobile : dashboardStyles.createDrawerShellDesktop,
+          isCompactPortrait ? dashboardStyles.createDrawerShadowTop : dashboardStyles.createDrawerShadowLeft,
+          {
+            width: createDrawerWidth,
+            height: createDrawerHeight ?? "100%",
+            top: isCompactPortrait ? createDrawerTopInset : 0,
+            transform: (isCompactPortrait
+              ? [{ translateY: createDrawerTranslate }]
+              : [{ translateX: createDrawerTranslate }]) as any,
+          },
+        ]}
+      >
+        <ScrollView style={dashboardStyles.createDrawerScroll} contentContainerStyle={dashboardStyles.createDrawerContent}>
+          <DSText style={dashboardStyles.createDrawerTitle}>{t("dashboard.createPortfolio.title")}</DSText>
+          <DSInput
+            label={t("dashboard.createPortfolio.name")}
+            value={newPortfolioName}
+            onChangeText={onChangeName}
+            placeholder={t("dashboard.createPortfolio.placeholder")}
+            testID="dashboard-create-portfolio-name"
+          />
+
+          {createPortfolioError ? <DSText style={dashboardStyles.error}>{createPortfolioError}</DSText> : null}
+
+          <View style={dashboardStyles.createDrawerActions}>
+            <DSButton title={t("common.cancel")} onPress={onCancel} />
+            <DSButton
+              title={creatingPortfolio ? t("dashboard.createPortfolio.creating") : t("dashboard.createPortfolio.confirm")}
+              onPress={onConfirm}
+              testID="dashboard-create-portfolio-confirm"
+              disabled={creatingPortfolio}
+            />
+          </View>
+        </ScrollView>
+      </Animated.View>
+    </View>
+  );
+});

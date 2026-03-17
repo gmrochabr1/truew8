@@ -110,6 +110,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#8D1F2A',
     backgroundColor: '#B62C3A',
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: theme.spacing.md,
