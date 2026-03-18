@@ -32,11 +32,11 @@ class RebalancingEngineTest {
         assertEquals(2, response.orders().size());
         assertEquals(TradeAction.BUY, response.orders().get(0).action());
         assertEquals("PETR4", response.orders().get(0).ticker());
-                assertEquals(new BigDecimal("100"), response.orders().get(0).quantity());
+        assertEquals(new BigDecimal("100"), response.orders().get(0).quantity());
 
         assertEquals(TradeAction.BUY, response.orders().get(1).action());
         assertEquals("VALE3", response.orders().get(1).ticker());
-                assertEquals(new BigDecimal("100"), response.orders().get(1).quantity());
+        assertEquals(new BigDecimal("100"), response.orders().get(1).quantity());
     }
 
     @Test
@@ -77,4 +77,55 @@ class RebalancingEngineTest {
         assertEquals(TradeAction.BUY, fractionalOrder.action());
         assertEquals(new BigDecimal("101"), fractionalOrder.quantity());
     }
+
+    @Test
+    void shouldGenerateBuyForSingleAssetTargetWhenDepositIsPositive() {
+        RebalanceRequestDTO request = new RebalanceRequestDTO(
+                new BigDecimal("100.00"),
+                List.of(new AssetDTO("PETR4", new BigDecimal("10"), new BigDecimal("50.00"))),
+                List.of(new AllocationDTO("PETR4", BigDecimal.ONE, new BigDecimal("50.00")))
+        );
+
+        RebalanceResponseDTO response = engine.rebalance(request);
+        OrderActionDTO order = response.orders().get(0);
+
+        assertEquals(TradeAction.BUY, order.action());
+        assertEquals("PETR4", order.ticker());
+        assertEquals(new BigDecimal("2"), order.quantity());
+        assertEquals(new BigDecimal("100.00"), order.estimatedValue());
+    }
+
+    @Test
+    void shouldFallbackToCurrentHoldingPriceWhenTargetPriceIsZero() {
+        RebalanceRequestDTO request = new RebalanceRequestDTO(
+                new BigDecimal("100.00"),
+                List.of(new AssetDTO("PETR4", new BigDecimal("10"), new BigDecimal("50.00"))),
+                List.of(new AllocationDTO("PETR4", BigDecimal.ONE, BigDecimal.ZERO))
+        );
+
+        RebalanceResponseDTO response = engine.rebalance(request);
+        OrderActionDTO order = response.orders().get(0);
+
+        assertEquals(TradeAction.BUY, order.action());
+        assertEquals("PETR4", order.ticker());
+        assertEquals(new BigDecimal("2"), order.quantity());
+        assertEquals(new BigDecimal("100.00"), order.estimatedValue());
+    }
+
+        @Test
+        void shouldSuggestFractionalBuyWhenDepositIsSmallButCanBuyAtLeastOneShare() {
+                RebalanceRequestDTO request = new RebalanceRequestDTO(
+                                new BigDecimal("9.00"),
+                                List.of(),
+                                List.of(new AllocationDTO("PETR4", BigDecimal.ONE, new BigDecimal("3.00")))
+                );
+
+                RebalanceResponseDTO response = engine.rebalance(request);
+                OrderActionDTO order = response.orders().get(0);
+
+                assertEquals(TradeAction.BUY, order.action());
+                assertEquals("PETR4", order.ticker());
+                assertEquals(new BigDecimal("3"), order.quantity());
+                assertEquals(new BigDecimal("9.00"), order.estimatedValue());
+        }
 }

@@ -50,7 +50,15 @@ public class RebalancingEngine {
                 brokerage = currentAsset.brokerage();
             }
 
-            orders.add(createOrderFromDiff(ticker, allocation.price(), targetValue.subtract(currentAssetValue), brokerage));
+            BigDecimal orderPrice = allocation.price();
+            if ((orderPrice == null || orderPrice.compareTo(BigDecimal.ZERO) <= 0)
+                    && currentAsset != null
+                    && currentAsset.price() != null
+                    && currentAsset.price().compareTo(BigDecimal.ZERO) > 0) {
+                orderPrice = currentAsset.price();
+            }
+
+            orders.add(createOrderFromDiff(ticker, orderPrice, targetValue.subtract(currentAssetValue), brokerage));
         }
 
         for (AssetDTO holding : request.currentHoldings()) {
@@ -73,7 +81,7 @@ public class RebalancingEngine {
     }
 
     private OrderActionDTO createOrderFromDiff(String ticker, BigDecimal price, BigDecimal diffValue, String brokerage) {
-        if (diffValue.abs().compareTo(TOLERANCE) < 0) {
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
             return holdOrder(ticker, brokerage);
         }
 
@@ -83,6 +91,13 @@ public class RebalancingEngine {
         }
 
         TradeAction action = diffValue.compareTo(BigDecimal.ZERO) > 0 ? TradeAction.BUY : TradeAction.SELL;
+
+        // For small deposits, keep buy suggestions when at least one share can be bought in the fractional market.
+        // Tolerance still applies to tiny sell adjustments to avoid noisy churn.
+        if (action == TradeAction.SELL && diffValue.abs().compareTo(TOLERANCE) < 0) {
+            return holdOrder(ticker, brokerage);
+        }
+
         BigDecimal estimatedValue = quantity.multiply(price).setScale(MONEY_SCALE, RoundingMode.HALF_UP);
 
         return new OrderActionDTO(action, ticker, quantity, estimatedValue, brokerage);
@@ -96,7 +111,13 @@ public class RebalancingEngine {
         }
 
         BigDecimal lots = rawQuantity.divide(STANDARD_LOT, 0, RoundingMode.DOWN);
-        return lots.multiply(STANDARD_LOT);
+        BigDecimal lotQuantity = lots.multiply(STANDARD_LOT);
+        if (lotQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            return lotQuantity;
+        }
+
+        // Keep B3 lot preference, but avoid collapsing valid small orders into HOLD.
+        return rawQuantity.setScale(0, RoundingMode.DOWN);
     }
 
     private boolean isFractionalTicker(String ticker) {

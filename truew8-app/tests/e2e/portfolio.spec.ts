@@ -25,16 +25,16 @@ test('switches locale globally from dashboard', async ({ page }) => {
 
   await page.goto('/');
 
-  await expect(page.getByText('Visao Consolidada')).toBeVisible();
+  await expect(page.getByText('Dashboard')).toBeVisible();
   await page.getByTestId('dashboard-locale-menu-trigger').click();
   await expect(page.getByTestId('dashboard-locale-popover')).toBeVisible();
   await page.getByTestId('dashboard-locale-enUS').click();
-  await expect(page.getByText('Consolidated View')).toBeVisible();
+  await expect(page.getByText('Dashboard')).toBeVisible();
   await expect(page.getByTestId('dashboard-header-logout')).toBeVisible();
 
   await page.getByTestId('dashboard-locale-menu-trigger').click();
   await page.getByTestId('dashboard-locale-ptBR').click();
-  await expect(page.getByText('Visao Consolidada')).toBeVisible();
+  await expect(page.getByText('Dashboard')).toBeVisible();
 });
 
 test('opens user personalization menu and persists selected options', async ({ page }) => {
@@ -193,6 +193,39 @@ test('adds manual holding using drawer flow', async ({ page }) => {
   await expect(page.getByText('Corretora: XP')).toBeVisible();
 });
 
+test('opens desktop drawers as centered bottom sheets with bounded width', async ({ page }) => {
+  const email = 'ux.desktop-drawer-bounds@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.setViewportSize({ width: 1440, height: 920 });
+  await page.goto('/');
+
+  await page.getByTestId('dashboard-create-portfolio-card').click();
+  const createDrawerBox = await page.getByTestId('dashboard-create-portfolio-drawer').boundingBox();
+  expect(createDrawerBox).not.toBeNull();
+  expect(createDrawerBox?.width ?? 0).toBeLessThanOrEqual(1024);
+  expect(createDrawerBox?.x ?? 0).toBeGreaterThan(0);
+  expect(createDrawerBox?.y ?? 0).toBeGreaterThan(0);
+
+  await page.getByText('Cancelar').first().click();
+  await page.getByTestId('dashboard-create-portfolio-card').click();
+  await page.getByTestId('dashboard-create-portfolio-confirm').click();
+
+  const detailDrawerBox = await page.getByTestId('portfolio-detail-drawer').boundingBox();
+  expect(detailDrawerBox).not.toBeNull();
+  expect(detailDrawerBox?.width ?? 0).toBeLessThanOrEqual(1024);
+  expect(detailDrawerBox?.x ?? 0).toBeGreaterThan(0);
+  expect(detailDrawerBox?.y ?? 0).toBeGreaterThan(0);
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  const manualDrawerBox = await page.getByTestId('portfolio-manual-drawer').boundingBox();
+  expect(manualDrawerBox).not.toBeNull();
+  expect(manualDrawerBox?.width ?? 0).toBeLessThanOrEqual(1024);
+  expect(manualDrawerBox?.x ?? 0).toBeGreaterThan(0);
+  expect(manualDrawerBox?.y ?? 0).toBeGreaterThan(0);
+});
+
 test.use({ viewport: { width: 390, height: 844 } });
 
 test('keeps hero title readable on compact portrait without vertical wrapping', async ({ page }) => {
@@ -202,7 +235,7 @@ test('keeps hero title readable on compact portrait without vertical wrapping', 
 
   await page.goto('/');
 
-  const title = page.getByText('Visao Consolidada');
+  const title = page.getByText('Dashboard');
   await expect(title).toBeVisible();
 
   const titleBox = await title.boundingBox();

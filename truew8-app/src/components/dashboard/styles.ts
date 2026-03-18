@@ -316,27 +316,11 @@ export const dashboardStyles = StyleSheet.create({
     backgroundColor: theme.colors.panel,
     zIndex: 30,
   },
-  createDrawerShellDesktop: {
-    right: 0,
-    top: 0,
-    height: "100%",
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-  createDrawerShellMobile: {
-    right: 0,
-    left: 0,
-    bottom: 0,
+  createDrawerShellBottomSheet: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-  },
-  createDrawerShadowLeft: {
-    shadowColor: "#000",
-    shadowOffset: { width: -5, height: 0 },
-    shadowOpacity: 0.18,
-    elevation: 10,
   },
   createDrawerShadowTop: {
     shadowColor: "#000",

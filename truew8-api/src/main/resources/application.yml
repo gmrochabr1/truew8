@@ -40,7 +40,7 @@ app:
       secure: ${AUTH_COOKIE_SECURE:true}
   jwt:
     secret: ${JWT_SECRET:truew8-dev-jwt-secret-min-32-bytes-please-change}
-    access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+    access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:28800000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:1209600000}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}

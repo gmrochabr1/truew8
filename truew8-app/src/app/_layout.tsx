@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import React from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform } from 'react-native';
 
 import { VaultGuard } from '@/src/components/security/VaultGuard';
 import { AuthProvider } from '@/src/store/AuthContext';
@@ -11,9 +11,7 @@ import { theme } from '@/src/theme/tokens';
 
 function ProtectedAppShell() {
   const { email, isAuthenticated } = useAuth();
-  const { width, height } = useWindowDimensions();
-  const isCompactPortrait = width < 640 && height >= width;
-  const portfolioAnimation = isCompactPortrait ? 'slide_from_bottom' : 'slide_from_right';
+  const portfolioAnimation = 'slide_from_bottom';
 
   React.useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') {

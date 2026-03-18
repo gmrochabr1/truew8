@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { maskNumericInput } from '@/src/services/numericInput';
+import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from '@/src/theme/tokens';
 
 type DSInputProps = {
@@ -14,6 +16,10 @@ type DSInputProps = {
   maxLength?: number;
   testID?: string;
   rightElement?: React.ReactNode;
+  isValueField?: boolean;
+  valueLocale?: string;
+  valueMaxFractionDigits?: number;
+  valueAllowDecimal?: boolean;
 };
 
 export function DSInput({
@@ -27,7 +33,31 @@ export function DSInput({
   maxLength = 160,
   testID,
   rightElement,
+  isValueField = false,
+  valueLocale,
+  valueMaxFractionDigits = 2,
+  valueAllowDecimal = true,
 }: DSInputProps) {
+  const { locale } = useLocale();
+  const numberLocale = valueLocale ?? (locale === 'en-US' ? 'en-US' : 'pt-BR');
+
+  const handleChangeText = useCallback(
+    (nextValue: string) => {
+      if (!isValueField) {
+        onChangeText(nextValue);
+        return;
+      }
+
+      const maskedValue = maskNumericInput(nextValue, {
+        locale: numberLocale,
+        allowDecimal: valueAllowDecimal,
+        maxFractionDigits: valueMaxFractionDigits,
+      });
+      onChangeText(maskedValue);
+    },
+    [isValueField, numberLocale, onChangeText, valueAllowDecimal, valueMaxFractionDigits],
+  );
+
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
@@ -37,7 +67,7 @@ export function DSInput({
           accessibilityLabel={testID}
           style={styles.input}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleChangeText}
           placeholder={placeholder}
           keyboardType={keyboardType}
           secureTextEntry={secureTextEntry}

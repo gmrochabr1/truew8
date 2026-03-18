@@ -59,7 +59,40 @@ export type UpdatePortfolioInput = {
 };
 
 function toNumber(value: unknown): number {
-  const parsed = Number(value);
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const raw = String(value ?? '').trim();
+  if (!raw) {
+    return 0;
+  }
+
+  const sanitized = raw.replace(/\s/g, '').replace(/[^0-9,.-]/g, '');
+  if (!sanitized) {
+    return 0;
+  }
+
+  const hasComma = sanitized.includes(',');
+  const hasDot = sanitized.includes('.');
+  let normalized = sanitized;
+
+  if (hasComma && hasDot) {
+    const lastComma = sanitized.lastIndexOf(',');
+    const lastDot = sanitized.lastIndexOf('.');
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+
+    normalized = sanitized
+      .replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '')
+      .replace(decimalSeparator, '.');
+  } else if (hasComma) {
+    normalized = sanitized.replace(/\./g, '').replace(',', '.');
+  } else {
+    normalized = sanitized.replace(/,/g, '');
+  }
+
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 

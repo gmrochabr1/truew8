@@ -14,8 +14,9 @@ type CreatePortfolioDrawerProps = {
   createBackdropOpacity: Animated.Value;
   createDrawerTranslate: Animated.Value;
   createDrawerWidth: number;
-  createDrawerHeight?: number;
-  createDrawerTopInset?: number;
+  createDrawerHeight: number;
+  createDrawerTopInset: number;
+  createDrawerLeftInset: number;
   newPortfolioName: string;
   onChangeName: (value: string) => void;
   createPortfolioError: string | null;
@@ -33,6 +34,7 @@ export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
   createDrawerWidth,
   createDrawerHeight,
   createDrawerTopInset,
+  createDrawerLeftInset,
   newPortfolioName,
   onChangeName,
   createPortfolioError,
@@ -64,15 +66,14 @@ export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
         testID="dashboard-create-portfolio-drawer"
         style={[
           dashboardStyles.createDrawerShell,
-          isCompactPortrait ? dashboardStyles.createDrawerShellMobile : dashboardStyles.createDrawerShellDesktop,
-          isCompactPortrait ? dashboardStyles.createDrawerShadowTop : dashboardStyles.createDrawerShadowLeft,
+          dashboardStyles.createDrawerShellBottomSheet,
+          dashboardStyles.createDrawerShadowTop,
           {
             width: createDrawerWidth,
-            height: createDrawerHeight ?? "100%",
-            top: isCompactPortrait ? createDrawerTopInset : 0,
-            transform: (isCompactPortrait
-              ? [{ translateY: createDrawerTranslate }]
-              : [{ translateX: createDrawerTranslate }]) as any,
+            height: createDrawerHeight,
+            top: createDrawerTopInset,
+            left: createDrawerLeftInset,
+            transform: [{ translateY: createDrawerTranslate }] as any,
           },
         ]}
       >

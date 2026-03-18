@@ -36,7 +36,7 @@ public class AuthController {
             @Value("${app.security.cookies.access-cookie-name:truew8_access}") String accessCookieName,
             @Value("${app.security.cookies.refresh-cookie-name:truew8_refresh}") String refreshCookieName,
             @Value("${app.security.cookies.secure:true}") boolean secureCookies,
-            @Value("${app.jwt.access-expiration-ms:${app.jwt.expiration-ms:900000}}") long accessExpirationMs,
+            @Value("${app.jwt.access-expiration-ms:${app.jwt.expiration-ms:28800000}}") long accessExpirationMs,
             @Value("${app.jwt.refresh-expiration-ms:1209600000}") long refreshExpirationMs
     ) {
         this.authService = authService;

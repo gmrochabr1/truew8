@@ -52,7 +52,7 @@ function keyStorageKey(email: string): string {
 
 function requirePinFormat(pin: string): void {
   if (!/^\d{6}$/.test(pin)) {
-    throw new Error('PIN invalido. Use 6 digitos numericos.');
+    throw new Error('PIN inválido. Use 6 dígitos numéricos.');
   }
 }
 
@@ -94,7 +94,7 @@ function toArrayBuffer(view: Uint8Array): ArrayBuffer {
 async function getSubtleCrypto(): Promise<SubtleCrypto> {
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) {
-    throw new Error('WebCrypto nao disponivel neste dispositivo.');
+    throw new Error('WebCrypto não disponível neste dispositivo.');
   }
   return subtle;
 }

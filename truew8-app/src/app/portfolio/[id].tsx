@@ -23,6 +23,7 @@ export default function PortfolioDetailScreen() {
   const { t, locale, formatCurrency } = useLocale();
   const isCompactPortrait = screenWidth < 640 && screenHeight >= screenWidth;
   const numberLocale = locale === 'en-US' ? 'en-US' : 'pt-BR';
+  const averagePricePlaceholder = numberLocale === 'en-US' ? '0.00' : '0,00';
 
   const [holdings, setHoldings] = useState<UserHolding[]>([]);
   const [portfolioName, setPortfolioName] = useState(String(name ?? '').trim());
@@ -72,41 +73,32 @@ export default function PortfolioDetailScreen() {
   }, [drawerWidth, isCompactPortrait, screenWidth]);
 
   const portfolioDrawerHeight = useMemo(() => {
-    if (!isCompactPortrait) {
-      return undefined;
-    }
-    const visibleTopGap = 72;
-    const preferredHeight = Math.round(screenHeight * 0.82);
+    const visibleTopGap = isCompactPortrait ? 72 : 96;
+    const preferredHeight = Math.round(screenHeight * (isCompactPortrait ? 0.82 : 0.86));
     return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 420));
   }, [isCompactPortrait, screenHeight]);
 
   const manualDrawerHeight = useMemo(() => {
-    if (!isCompactPortrait) {
-      return undefined;
-    }
-    const visibleTopGap = 88;
-    const preferredHeight = Math.round(screenHeight * 0.68);
+    const visibleTopGap = isCompactPortrait ? 88 : 112;
+    const preferredHeight = Math.round(screenHeight * (isCompactPortrait ? 0.68 : 0.72));
     return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 320));
   }, [isCompactPortrait, screenHeight]);
 
   const portfolioDrawerTopInset = useMemo(() => {
-    if (!isCompactPortrait || !portfolioDrawerHeight) {
-      return undefined;
-    }
     return Math.max(screenHeight - portfolioDrawerHeight, 56);
-  }, [isCompactPortrait, portfolioDrawerHeight, screenHeight]);
+  }, [portfolioDrawerHeight, screenHeight]);
 
   const manualDrawerTopInset = useMemo(() => {
-    if (!isCompactPortrait || !manualDrawerHeight) {
-      return undefined;
-    }
     return Math.max(screenHeight - manualDrawerHeight, 56);
-  }, [isCompactPortrait, manualDrawerHeight, screenHeight]);
+  }, [manualDrawerHeight, screenHeight]);
 
-  const animationStart = useMemo(
-    () => (isCompactPortrait ? Math.max(screenHeight, 640) : Math.max(screenWidth, 1024)),
-    [isCompactPortrait, screenHeight, screenWidth],
+  const drawerLeftInset = useMemo(() => Math.max((screenWidth - drawerWidth) / 2, 0), [drawerWidth, screenWidth]);
+  const manualDrawerLeftInset = useMemo(
+    () => Math.max((screenWidth - manualDrawerWidth) / 2, 0),
+    [manualDrawerWidth, screenWidth],
   );
+
+  const animationStart = useMemo(() => Math.max(screenHeight, 640), [screenHeight]);
 
   const drawerTranslate = useMemo(() => new Animated.Value(animationStart), [animationStart]);
   const backdropOpacity = useMemo(() => new Animated.Value(0), []);
@@ -115,10 +107,7 @@ export default function PortfolioDetailScreen() {
   const editNameDrawerTranslate = useMemo(() => new Animated.Value(animationStart), [animationStart]);
   const editNameBackdropOpacity = useMemo(() => new Animated.Value(0), []);
 
-  const getDrawerTransform = useCallback(
-    (value: Animated.Value) => (isCompactPortrait ? [{ translateY: value }] : [{ translateX: value }]),
-    [isCompactPortrait],
-  );
+  const getDrawerTransform = useCallback((value: Animated.Value) => [{ translateY: value }], []);
 
   React.useEffect(() => {
     const normalizedName = String(name ?? '').trim();
@@ -374,14 +363,6 @@ export default function PortfolioDetailScreen() {
     }
   };
 
-  const onQuantityChange = useCallback((value: string) => {
-    setQuantity(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 8 }));
-  }, [numberLocale]);
-
-  const onAveragePriceChange = useCallback((value: string) => {
-    setAveragePrice(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }));
-  }, [numberLocale]);
-
   const onSaveManualHolding = async () => {
     setFormError(null);
     const parsedQuantity = parseLocaleNumber(quantity, numberLocale);
@@ -414,6 +395,10 @@ export default function PortfolioDetailScreen() {
     }
   };
 
+  const onAveragePriceChange = useCallback((value: string) => {
+    setAveragePrice(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }));
+  }, [numberLocale]);
+
   const onSavePortfolioName = async () => {
     const normalizedName = editedPortfolioName.trim();
 
@@ -445,12 +430,13 @@ export default function PortfolioDetailScreen() {
         testID="portfolio-detail-drawer"
         style={[
           styles.drawerShell,
-          isCompactPortrait ? styles.drawerShellMobile : styles.drawerShellDesktop,
-          isCompactPortrait ? styles.drawerShadowTop : styles.drawerShadowLeft,
+          styles.drawerShellBottomSheet,
+          styles.drawerShadowTop,
           {
             width: drawerWidth,
-            height: portfolioDrawerHeight ?? '100%',
-            top: isCompactPortrait ? portfolioDrawerTopInset : 0,
+            height: portfolioDrawerHeight,
+            top: portfolioDrawerTopInset,
+            left: drawerLeftInset,
             transform: getDrawerTransform(drawerTranslate),
           },
         ]}
@@ -531,12 +517,13 @@ export default function PortfolioDetailScreen() {
                 testID="portfolio-manual-drawer"
                 style={[
                   styles.manualDrawerShell,
-                  isCompactPortrait ? styles.manualDrawerShellMobile : styles.manualDrawerShellDesktop,
-                  isCompactPortrait ? styles.manualDrawerShadowTop : styles.manualDrawerShadowLeft,
+                  styles.manualDrawerShellBottomSheet,
+                  styles.manualDrawerShadowTop,
                   {
                     width: manualDrawerWidth,
-                    height: manualDrawerHeight ?? '100%',
-                    top: isCompactPortrait ? manualDrawerTopInset : 0,
+                    height: manualDrawerHeight,
+                    top: manualDrawerTopInset,
+                    left: manualDrawerLeftInset,
                     transform: getDrawerTransform(manualDrawerTranslate),
                   },
                 ]}
@@ -554,9 +541,12 @@ export default function PortfolioDetailScreen() {
                   <DSInput
                     label={t('portfolio.quantityInput')}
                     value={quantity}
-                    onChangeText={onQuantityChange}
+                    onChangeText={setQuantity}
                     keyboardType="decimal-pad"
                     maxLength={20}
+                    isValueField
+                    valueLocale={numberLocale}
+                    valueMaxFractionDigits={8}
                     testID="manual-quantity"
                   />
                   <DSInput
@@ -565,6 +555,7 @@ export default function PortfolioDetailScreen() {
                     onChangeText={onAveragePriceChange}
                     keyboardType="decimal-pad"
                     maxLength={16}
+                    placeholder={averagePricePlaceholder}
                     testID="manual-average-price"
                   />
                   <DSInput
@@ -606,12 +597,13 @@ export default function PortfolioDetailScreen() {
                 testID="portfolio-edit-name-drawer"
                 style={[
                   styles.manualDrawerShell,
-                  isCompactPortrait ? styles.manualDrawerShellMobile : styles.manualDrawerShellDesktop,
-                  isCompactPortrait ? styles.manualDrawerShadowTop : styles.manualDrawerShadowLeft,
+                  styles.manualDrawerShellBottomSheet,
+                  styles.manualDrawerShadowTop,
                   {
                     width: manualDrawerWidth,
-                    height: manualDrawerHeight ?? '100%',
-                    top: isCompactPortrait ? manualDrawerTopInset : 0,
+                    height: manualDrawerHeight,
+                    top: manualDrawerTopInset,
+                    left: manualDrawerLeftInset,
                     transform: getDrawerTransform(editNameDrawerTranslate),
                   },
                 ]}
@@ -673,10 +665,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     justifyContent: 'flex-start',
-    alignItems: 'flex-end',
+    alignItems: 'stretch',
   },
   overlayRootMobile: {
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     alignItems: 'stretch',
   },
   pageBackdrop: {
@@ -687,21 +679,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     overflow: 'hidden',
   },
-  drawerShellDesktop: {
-    borderTopLeftRadius: 20,
-    borderBottomLeftRadius: 20,
-  },
-  drawerShellMobile: {
+  drawerShellBottomSheet: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-  },
-  drawerShadowLeft: {
-    shadowColor: '#000',
-    shadowOffset: { width: -8, height: 0 },
-    shadowOpacity: 0.24,
-    elevation: 18,
   },
   drawerShadowTop: {
     shadowColor: '#000',
@@ -867,26 +849,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.panel,
     zIndex: 30,
   },
-  manualDrawerShellDesktop: {
-    right: 0,
-    height: '100%',
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-  manualDrawerShellMobile: {
-    right: 0,
-    left: 0,
-    bottom: 0,
+  manualDrawerShellBottomSheet: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-  },
-  manualDrawerShadowLeft: {
-    shadowColor: '#000',
-    shadowOffset: { width: -5, height: 0 },
-    shadowOpacity: 0.18,
-    elevation: 10,
   },
   manualDrawerShadowTop: {
     shadowColor: '#000',
@@ -907,8 +874,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
   },
   manualDrawerActions: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: theme.spacing.sm,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
 });

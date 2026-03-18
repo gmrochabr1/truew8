@@ -5,7 +5,7 @@ import { DSAutocomplete } from "@/src/components/common/DSAutocomplete/DSAutocom
 import { DSButton } from "@/src/components/common/DSButton";
 import { DSInput } from "@/src/components/common/DSInput";
 import { DSText } from "@/src/components/common/DSText";
-import { getDecimalSeparator, maskNumericInput, parseLocaleNumber } from "@/src/services/numericInput";
+import { getDecimalSeparator, parseLocaleNumber } from "@/src/services/numericInput";
 import {
   UserCustomizationPreference,
   getCustomizationPreferences,
@@ -167,9 +167,8 @@ export const UserCustomizationMenu = memo(function UserCustomizationMenu({
                   label={t("dashboard.preferences.tolerance")}
                   value={toleranceInput}
                   onChangeText={(value) => {
-                    const maskedValue = maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 });
-                    const numericValue = parseLocaleNumber(maskedValue, numberLocale);
-                    setToleranceInput(maskedValue);
+                    const numericValue = parseLocaleNumber(value, numberLocale);
+                    setToleranceInput(value);
                     setPrefs((current) => ({
                       ...current,
                       toleranceValue: Number.isFinite(numericValue) ? numericValue : 0,
@@ -177,6 +176,9 @@ export const UserCustomizationMenu = memo(function UserCustomizationMenu({
                   }}
                   keyboardType="decimal-pad"
                   maxLength={6}
+                  isValueField
+                  valueLocale={numberLocale}
+                  valueMaxFractionDigits={2}
                   testID="dashboard-pref-tolerance"
                 />
 

@@ -4,7 +4,7 @@ import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimension
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
-import { getDecimalSeparator, maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
+import { getDecimalSeparator, parseLocaleNumber } from '@/src/services/numericInput';
 import { UserHolding } from '@/src/services/portfolio';
 import { calculateRebalance, RebalanceOrder } from '@/src/services/rebalance';
 import { useLocale } from '@/src/store/LocaleContext';
@@ -54,6 +54,22 @@ function getMobileDrawerHeight(step: 1 | 2 | 3, screenHeight: number): number {
   return Math.min(Math.round(screenHeight * 0.66), maxHeight);
 }
 
+function getDrawerHeight(step: 1 | 2 | 3, screenHeight: number, isMobileLayout: boolean): number {
+  if (isMobileLayout) {
+    return getMobileDrawerHeight(step, screenHeight);
+  }
+
+  const visibleTopGap = 96;
+  const maxHeight = Math.max(screenHeight - visibleTopGap, 380);
+  if (step === 1) {
+    return Math.min(Math.round(screenHeight * 0.8), maxHeight);
+  }
+  if (step === 2) {
+    return Math.min(Math.round(screenHeight * 0.74), maxHeight);
+  }
+  return Math.min(Math.round(screenHeight * 0.68), maxHeight);
+}
+
 type CascadingRebalanceFlowProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -82,10 +98,7 @@ export function CascadingRebalanceFlow({
 
   const availableWidth = useMemo(() => Math.min(screenWidth, windowWidth), [screenWidth, windowWidth]);
   const isMobileLayout = windowWidth < MOBILE_BREAKPOINT;
-  const animationDistance = useMemo(
-    () => (isMobileLayout ? Math.max(windowHeight, 640) : Math.max(availableWidth, 1024)),
-    [availableWidth, isMobileLayout, windowHeight],
-  );
+  const animationDistance = useMemo(() => Math.max(windowHeight, 640), [windowHeight]);
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   const step1Translate = useRef(new Animated.Value(animationDistance)).current;
@@ -107,29 +120,36 @@ export function CascadingRebalanceFlow({
   );
 
   const drawerOneHeight = useMemo(
-    () => (isMobileLayout ? getMobileDrawerHeight(1, windowHeight) : undefined),
+    () => getDrawerHeight(1, windowHeight, isMobileLayout),
     [isMobileLayout, windowHeight],
   );
   const drawerTwoHeight = useMemo(
-    () => (isMobileLayout ? getMobileDrawerHeight(2, windowHeight) : undefined),
+    () => getDrawerHeight(2, windowHeight, isMobileLayout),
     [isMobileLayout, windowHeight],
   );
   const drawerThreeHeight = useMemo(
-    () => (isMobileLayout ? getMobileDrawerHeight(3, windowHeight) : undefined),
+    () => getDrawerHeight(3, windowHeight, isMobileLayout),
     [isMobileLayout, windowHeight],
   );
 
   const drawerOneTopInset = useMemo(
-    () => (isMobileLayout && drawerOneHeight ? Math.max(windowHeight - drawerOneHeight, 56) : undefined),
-    [drawerOneHeight, isMobileLayout, windowHeight],
+    () => Math.max(windowHeight - drawerOneHeight, 56),
+    [drawerOneHeight, windowHeight],
   );
   const drawerTwoTopInset = useMemo(
-    () => (isMobileLayout && drawerTwoHeight ? Math.max(windowHeight - drawerTwoHeight, 56) : undefined),
-    [drawerTwoHeight, isMobileLayout, windowHeight],
+    () => Math.max(windowHeight - drawerTwoHeight, 56),
+    [drawerTwoHeight, windowHeight],
   );
   const drawerThreeTopInset = useMemo(
-    () => (isMobileLayout && drawerThreeHeight ? Math.max(windowHeight - drawerThreeHeight, 56) : undefined),
-    [drawerThreeHeight, isMobileLayout, windowHeight],
+    () => Math.max(windowHeight - drawerThreeHeight, 56),
+    [drawerThreeHeight, windowHeight],
+  );
+
+  const drawerOneLeftInset = useMemo(() => Math.max((availableWidth - drawerOneWidth) / 2, 0), [availableWidth, drawerOneWidth]);
+  const drawerTwoLeftInset = useMemo(() => Math.max((availableWidth - drawerTwoWidth) / 2, 0), [availableWidth, drawerTwoWidth]);
+  const drawerThreeLeftInset = useMemo(
+    () => Math.max((availableWidth - drawerThreeWidth) / 2, 0),
+    [availableWidth, drawerThreeWidth],
   );
 
   const tickerPriceMap = useMemo(() => {
@@ -354,8 +374,43 @@ export function CascadingRebalanceFlow({
     }
   };
 
+  const goToStepTwo = () => {
+    setRequestError(null);
+
+    if (!deposit.trim()) {
+      setRequestError(t('rebalance.errorDepositRequired'));
+      return;
+    }
+
+    const parsedDeposit = parseLocaleNumber(deposit, numberLocale);
+    if (parsedDeposit < 0) {
+      setRequestError(t('rebalance.errorDeposit'));
+      return;
+    }
+
+    setCurrentStep(2);
+  };
+
+  const goToStepThree = () => {
+    setRequestError(null);
+
+    const hasEmptyTarget = targetTickers.some((ticker) => !(targets[ticker] ?? '').trim());
+    if (hasEmptyTarget) {
+      setRequestError(t('rebalance.errorTargetRequired'));
+      return;
+    }
+
+    const percentDelta = Math.abs(totalTarget - 100);
+    if (percentDelta > 0.01) {
+      setRequestError(t('rebalance.errorTargetSum'));
+      return;
+    }
+
+    setCurrentStep(3);
+  };
+
   const getDrawerTransform = (value: Animated.Value) => {
-    return isMobileLayout ? [{ translateY: value }] : [{ translateX: value }];
+    return [{ translateY: value }];
   };
 
   if (!isRendered) {
@@ -378,12 +433,13 @@ export function CascadingRebalanceFlow({
           testID="rebalance-step-1-drawer"
           style={[
             styles.drawerBase,
-            isMobileLayout ? styles.mobileDrawerBase : styles.desktopDrawerBase,
-            isMobileLayout ? styles.cascadeShadowTop : styles.cascadeShadowLeft,
+            styles.bottomSheetDrawerBase,
+            styles.cascadeShadowTop,
             {
               width: drawerOneWidth,
-              height: drawerOneHeight ?? '100%',
+              height: drawerOneHeight,
               top: drawerOneTopInset,
+              left: drawerOneLeftInset,
               zIndex: 30,
               transform: getDrawerTransform(step1Translate),
             },
@@ -394,9 +450,12 @@ export function CascadingRebalanceFlow({
             <DSInput
               label={t('rebalance.depositInput')}
               value={deposit}
-              onChangeText={(value) => setDeposit(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }))}
+              onChangeText={setDeposit}
               keyboardType="decimal-pad"
               maxLength={16}
+              isValueField
+              valueLocale={numberLocale}
+              valueMaxFractionDigits={2}
               placeholder={t('rebalance.depositPlaceholder')}
               testID="rebalance-deposit-input"
             />
@@ -406,22 +465,24 @@ export function CascadingRebalanceFlow({
                 <DSButton title={t('common.close')} onPress={onClose} />
               </View>
               <View style={styles.drawerActionSlot}>
-                <DSButton title={t('common.continue')} onPress={() => setCurrentStep(2)} testID="rebalance-step-1-continue" />
+                <DSButton title={t('common.continue')} onPress={goToStepTwo} testID="rebalance-step-1-continue" />
               </View>
             </View>
           </ScrollView>
+          {currentStep >= 2 ? <View testID="rebalance-step-1-shadow" pointerEvents="none" style={styles.previousStepShade} /> : null}
         </Animated.View>
 
         <Animated.View
           testID="rebalance-step-2-drawer"
           style={[
             styles.drawerBase,
-            isMobileLayout ? styles.mobileDrawerBase : styles.desktopDrawerBase,
-            isMobileLayout ? styles.cascadeShadowTop : styles.cascadeShadowLeft,
+            styles.bottomSheetDrawerBase,
+            styles.cascadeShadowTop,
             {
               width: drawerTwoWidth,
-              height: drawerTwoHeight ?? '100%',
+              height: drawerTwoHeight,
               top: drawerTwoTopInset,
+              left: drawerTwoLeftInset,
               zIndex: 31,
               transform: getDrawerTransform(step2Translate),
             },
@@ -441,11 +502,15 @@ export function CascadingRebalanceFlow({
                 onChangeText={(value) =>
                   setTargets((previous) => ({
                     ...previous,
-                    [ticker]: maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }),
+                    [ticker]: value,
                   }))
                 }
                 keyboardType="decimal-pad"
                 maxLength={8}
+                isValueField
+                valueLocale={numberLocale}
+                valueMaxFractionDigits={2}
+                testID={`rebalance-target-${ticker}`}
               />
             ))}
             <View style={styles.totalRow}>
@@ -464,22 +529,25 @@ export function CascadingRebalanceFlow({
                 <DSButton title={t('common.back')} onPress={() => setCurrentStep(1)} />
               </View>
               <View style={styles.drawerActionSlot}>
-                <DSButton title={t('common.continue')} onPress={() => setCurrentStep(3)} testID="rebalance-step-2-continue" />
+                <DSButton title={t('common.continue')} onPress={goToStepThree} testID="rebalance-step-2-continue" />
               </View>
             </View>
+            {requestError && currentStep === 2 ? <DSText style={styles.error}>{requestError}</DSText> : null}
           </ScrollView>
+          {currentStep >= 3 ? <View testID="rebalance-step-2-shadow" pointerEvents="none" style={styles.previousStepShade} /> : null}
         </Animated.View>
 
         <Animated.View
           testID="rebalance-step-3-drawer"
           style={[
             styles.drawerBase,
-            isMobileLayout ? styles.mobileDrawerBase : styles.desktopDrawerBase,
-            isMobileLayout ? styles.cascadeShadowTop : styles.cascadeShadowLeft,
+            styles.bottomSheetDrawerBase,
+            styles.cascadeShadowTop,
             {
               width: drawerThreeWidth,
-              height: drawerThreeHeight ?? '100%',
+              height: drawerThreeHeight,
               top: drawerThreeTopInset,
+              left: drawerThreeLeftInset,
               zIndex: 32,
               transform: getDrawerTransform(step3Translate),
             },
@@ -491,6 +559,7 @@ export function CascadingRebalanceFlow({
               title={isCalculating ? t('rebalance.calculating') : t('rebalance.calculate')}
               onPress={() => void onCalculate()}
               disabled={isCalculating}
+              testID="rebalance-calculate-button"
             />
             {requestError && currentStep === 3 ? <DSText style={styles.error}>{requestError}</DSText> : null}
             {orders ? (
@@ -561,26 +630,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  desktopDrawerBase: {
-    right: 0,
-    height: '100%',
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
-  },
-  mobileDrawerBase: {
-    right: 0,
-    left: 0,
-    bottom: 0,
+  bottomSheetDrawerBase: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-  },
-  cascadeShadowLeft: {
-    shadowColor: '#000',
-    shadowOffset: { width: -5, height: 0 },
-    shadowOpacity: 0.15,
-    elevation: 10,
   },
   cascadeShadowTop: {
     shadowColor: '#000',
@@ -634,6 +688,10 @@ const styles = StyleSheet.create({
   error: {
     color: theme.colors.danger,
     fontWeight: '700',
+  },
+  previousStepShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(4, 14, 34, 0.22)',
   },
   resultsWrapper: {
     gap: 8,

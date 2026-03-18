@@ -29,42 +29,32 @@ export default function DashboardScreen() {
   const [newPortfolioName, setNewPortfolioName] = useState("");
   const [createPortfolioError, setCreatePortfolioError] = useState<string | null>(null);
 
-  const animationStart = useMemo(
-    () => (isCompactPortrait ? Math.max(screenHeight, 640) : Math.max(screenWidth, 1024)),
-    [isCompactPortrait, screenHeight, screenWidth],
-  );
+  const animationStart = useMemo(() => Math.max(screenHeight, 640), [screenHeight]);
   const createDrawerTranslate = useRef(new Animated.Value(animationStart)).current;
   const createBackdropOpacity = useRef(new Animated.Value(0)).current;
 
   const createDrawerWidth = useMemo(() => {
-    if (isCompactPortrait) {
-      return screenWidth;
-    }
     const boundedWidth = Math.min(screenWidth, 1024);
     if (boundedWidth < 560) {
       return boundedWidth;
     }
-    if (boundedWidth < 900) {
-      return boundedWidth * 0.9;
-    }
-    return 520;
-  }, [isCompactPortrait, screenWidth]);
+    return Math.min(boundedWidth * 0.94, 520);
+  }, [screenWidth]);
 
   const createDrawerHeight = useMemo(() => {
-    if (!isCompactPortrait) {
-      return undefined;
-    }
-    const visibleTopGap = 72;
-    const preferredHeight = Math.round(screenHeight * 0.58);
+    const visibleTopGap = isCompactPortrait ? 72 : 96;
+    const preferredHeight = Math.round(screenHeight * (isCompactPortrait ? 0.58 : 0.62));
     return Math.min(preferredHeight, Math.max(screenHeight - visibleTopGap, 320));
   }, [isCompactPortrait, screenHeight]);
 
   const createDrawerTopInset = useMemo(() => {
-    if (!isCompactPortrait || !createDrawerHeight) {
-      return undefined;
-    }
     return Math.max(screenHeight - createDrawerHeight, 56);
-  }, [createDrawerHeight, isCompactPortrait, screenHeight]);
+  }, [createDrawerHeight, screenHeight]);
+
+  const createDrawerLeftInset = useMemo(
+    () => Math.max((screenWidth - createDrawerWidth) / 2, 0),
+    [createDrawerWidth, screenWidth],
+  );
 
   const onOpenCreatePortfolio = useCallback(() => {
     setCreatePortfolioError(null);
@@ -246,6 +236,7 @@ export default function DashboardScreen() {
         createDrawerWidth={createDrawerWidth}
         createDrawerHeight={createDrawerHeight}
         createDrawerTopInset={createDrawerTopInset}
+        createDrawerLeftInset={createDrawerLeftInset}
         newPortfolioName={newPortfolioName}
         onChangeName={setNewPortfolioName}
         createPortfolioError={createPortfolioError}
