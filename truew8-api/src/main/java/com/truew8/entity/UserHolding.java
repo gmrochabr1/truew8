@@ -38,6 +38,9 @@ public class UserHolding {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String ticker;
 
+    @Column(name = "asset_key", columnDefinition = "TEXT")
+    private String assetKey;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String brokerage;
 
@@ -105,6 +108,14 @@ public class UserHolding {
 
     public void setTicker(String ticker) {
         this.ticker = ticker;
+    }
+
+    public String getAssetKey() {
+        return assetKey;
+    }
+
+    public void setAssetKey(String assetKey) {
+        this.assetKey = assetKey;
     }
 
     public String getBrokerage() {

@@ -140,3 +140,63 @@ test('shows BUY order with quantity for a single-asset 100% target allocation', 
   await expect(page.getByText('BUY')).toBeVisible();
   await expect(page.getByText('Qtd: 2')).toBeVisible();
 });
+
+test('excludes locked holdings from rebalance currentHoldings payload', async ({ page }) => {
+  const email = 'ux.rebalance-ignore-locked@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  let capturedCurrentHoldings: Array<{ ticker?: string }> = [];
+  await page.route('**/rebalance', async (route) => {
+    const payload = route.request().postDataJSON() as {
+      currentHoldings?: Array<{ ticker?: string }>;
+      targetPortfolio?: Array<{ ticker?: string; brokerage?: string | null }>;
+    };
+
+    capturedCurrentHoldings = payload.currentHoldings ?? [];
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        orders: (payload.targetPortfolio ?? []).map((allocation) => ({
+          action: 'BUY',
+          ticker: allocation.ticker ?? 'UNKNOWN',
+          quantity: 1,
+          estimatedValue: 1,
+          brokerage: allocation.brokerage ?? null,
+        })),
+      }),
+    });
+  });
+
+  await page.goto('/');
+
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('PETR4');
+  await page.getByTestId('manual-quantity').fill('10');
+  await page.getByTestId('manual-average-price').fill('20');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('VALE3');
+  await page.getByTestId('manual-quantity').fill('5');
+  await page.getByTestId('manual-average-price').fill('30');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toBeVisible();
+  await page.getByTestId('holding-lock-modal-confirm').click();
+
+  await page.getByTestId('portfolio-rebalance-button').click();
+  await page.getByTestId('rebalance-deposit-input').fill('1000');
+  await page.getByTestId('rebalance-step-1-continue').click();
+  await page.getByTestId('rebalance-target-VALE3').fill('100');
+  await page.getByTestId('rebalance-step-2-continue').click();
+  await page.getByTestId('rebalance-calculate-button').click();
+
+  expect(capturedCurrentHoldings.map((holding) => String(holding.ticker))).toEqual(['VALE3']);
+});

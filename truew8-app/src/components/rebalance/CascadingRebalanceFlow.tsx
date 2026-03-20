@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
@@ -173,10 +174,24 @@ export function CascadingRebalanceFlow({
   }, [holdings]);
 
   const targetTickers = useMemo(() => Array.from(tickerPriceMap.keys()), [tickerPriceMap]);
+  const lockedTickers = useMemo(() => {
+    const locked = new Set<string>();
+    holdings.forEach((holding) => {
+      if (holding.isLocked) {
+        locked.add(holding.ticker);
+      }
+    });
+    return locked;
+  }, [holdings]);
+
+  const unlockedTargetTickers = useMemo(
+    () => targetTickers.filter((ticker) => !lockedTickers.has(ticker)),
+    [lockedTickers, targetTickers],
+  );
 
   const totalTarget = useMemo(() => {
-    return targetTickers.reduce((sum, ticker) => sum + parseLocaleNumber(targets[ticker] ?? '0', numberLocale), 0);
-  }, [targetTickers, targets, numberLocale]);
+    return unlockedTargetTickers.reduce((sum, ticker) => sum + parseLocaleNumber(targets[ticker] ?? '0', numberLocale), 0);
+  }, [numberLocale, targets, unlockedTargetTickers]);
 
   const groupedOrders = useMemo(() => {
     const groups: Record<string, RebalanceOrder[]> = {};
@@ -310,18 +325,18 @@ export function CascadingRebalanceFlow({
   }, [animationDistance, backdropOpacity, currentStep, isOpen, isRendered, isMobileLayout, step1Translate, step2Translate, step3Translate]);
 
   useEffect(() => {
-    if (!isOpen || targetTickers.length === 0) {
+    if (!isOpen || unlockedTargetTickers.length === 0) {
       return;
     }
 
     const decimalSeparator = getDecimalSeparator(numberLocale);
-    const equalWeight = (100 / targetTickers.length).toFixed(2);
+    const equalWeight = (100 / unlockedTargetTickers.length).toFixed(2);
     const seededTargets: Record<string, string> = {};
-    targetTickers.forEach((ticker) => {
+    unlockedTargetTickers.forEach((ticker) => {
       seededTargets[ticker] = equalWeight.replace('.', decimalSeparator);
     });
     setTargets(seededTargets);
-  }, [isOpen, numberLocale, targetTickers]);
+  }, [isOpen, numberLocale, unlockedTargetTickers]);
 
   const onCalculate = async () => {
     setRequestError(null);
@@ -339,7 +354,7 @@ export function CascadingRebalanceFlow({
       return;
     }
 
-    const targetPortfolio = targetTickers.map((ticker) => {
+    const targetPortfolio = unlockedTargetTickers.map((ticker) => {
       const percent = parseLocaleNumber(targets[ticker] ?? '0', numberLocale);
       return {
         ticker,
@@ -358,12 +373,14 @@ export function CascadingRebalanceFlow({
     try {
       const response = await calculateRebalance({
         newDeposit: parsedDeposit,
-        currentHoldings: holdings.map((holding) => ({
-          ticker: holding.ticker,
-          quantity: holding.quantity,
-          price: holding.averagePrice,
-          brokerage: holding.brokerage,
-        })),
+        currentHoldings: holdings
+          .filter((holding) => !holding.isLocked)
+          .map((holding) => ({
+            ticker: holding.ticker,
+            quantity: holding.quantity,
+            price: holding.averagePrice,
+            brokerage: holding.brokerage,
+          })),
         targetPortfolio,
       });
       setOrders(response.orders ?? []);
@@ -394,7 +411,12 @@ export function CascadingRebalanceFlow({
   const goToStepThree = () => {
     setRequestError(null);
 
-    const hasEmptyTarget = targetTickers.some((ticker) => !(targets[ticker] ?? '').trim());
+    if (unlockedTargetTickers.length === 0) {
+      setRequestError(t('rebalance.errorNoAssets'));
+      return;
+    }
+
+    const hasEmptyTarget = unlockedTargetTickers.some((ticker) => !(targets[ticker] ?? '').trim());
     if (hasEmptyTarget) {
       setRequestError(t('rebalance.errorTargetRequired'));
       return;
@@ -494,25 +516,39 @@ export function CascadingRebalanceFlow({
             {!loadingHoldings && targetTickers.length === 0 ? (
               <DSText style={styles.emptyHint}>{t('rebalance.emptyAssets')}</DSText>
             ) : null}
-            {targetTickers.map((ticker) => (
-              <DSInput
-                key={ticker}
-                label={t('rebalance.targetTickerLabel', { ticker })}
-                value={targets[ticker] ?? ''}
-                onChangeText={(value) =>
-                  setTargets((previous) => ({
-                    ...previous,
-                    [ticker]: value,
-                  }))
-                }
-                keyboardType="decimal-pad"
-                maxLength={8}
-                isValueField
-                valueLocale={numberLocale}
-                valueMaxFractionDigits={2}
-                testID={`rebalance-target-${ticker}`}
-              />
-            ))}
+            {targetTickers.map((ticker) => {
+              if (lockedTickers.has(ticker)) {
+                return (
+                  <View key={ticker} style={styles.lockedTickerRow} testID={`rebalance-locked-${ticker}`}>
+                    <View style={styles.lockedTickerLabelRow}>
+                      <DSText style={styles.lockedTickerLabel}>{t('rebalance.targetTickerLabel', { ticker })}</DSText>
+                      <Ionicons name="lock-closed" size={14} color="#4A6286" />
+                    </View>
+                    <DSText style={styles.lockedTickerHint}>{t('rebalance.lockedAssetHint')}</DSText>
+                  </View>
+                );
+              }
+
+              return (
+                <DSInput
+                  key={ticker}
+                  label={t('rebalance.targetTickerLabel', { ticker })}
+                  value={targets[ticker] ?? ''}
+                  onChangeText={(value) =>
+                    setTargets((previous) => ({
+                      ...previous,
+                      [ticker]: value,
+                    }))
+                  }
+                  keyboardType="decimal-pad"
+                  maxLength={8}
+                  isValueField
+                  valueLocale={numberLocale}
+                  valueMaxFractionDigits={2}
+                  testID={`rebalance-target-${ticker}`}
+                />
+              );
+            })}
             <View style={styles.totalRow}>
               <DSText style={styles.totalLabel}>{t('rebalance.totalPercent')}</DSText>
               <DSText
@@ -684,6 +720,31 @@ const styles = StyleSheet.create({
   },
   emptyHint: {
     color: theme.colors.textMuted,
+  },
+  lockedTickerRow: {
+    borderWidth: 1,
+    borderColor: '#D2DEEE',
+    borderRadius: 10,
+    backgroundColor: '#EFF4FB',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 10,
+    gap: 4,
+    opacity: 0.85,
+  },
+  lockedTickerLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  lockedTickerLabel: {
+    color: '#2A466B',
+    fontWeight: '700',
+  },
+  lockedTickerHint: {
+    color: '#6A7F9B',
+    fontSize: 12,
+    lineHeight: 17,
   },
   error: {
     color: theme.colors.danger,

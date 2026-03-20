@@ -146,6 +146,10 @@ export const dashboardStyles = StyleSheet.create({
     borderColor: "#294A75",
     backgroundColor: "#0F2D53",
   },
+  heroFaqButton: {
+    borderColor: "#355D8D",
+    backgroundColor: "#123055",
+  },
   heroActionLabel: {
     color: "#EDF3FB",
     fontWeight: "700",
@@ -262,6 +266,35 @@ export const dashboardStyles = StyleSheet.create({
     borderRadius: 14,
     padding: theme.spacing.md,
     gap: theme.spacing.xs,
+  },
+  portfolioCardLocked: {
+    borderColor: "#9FB1C9",
+    backgroundColor: "#EEF3FA",
+    opacity: 0.6,
+  },
+  portfolioTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+  },
+  portfolioLockButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#BDCCE1",
+    backgroundColor: "#F2F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  portfolioLockButtonPressed: {
+    opacity: 0.75,
+  },
+  portfolioLockedHint: {
+    color: "#6C7D97",
+    fontSize: 12,
+    fontWeight: "700",
   },
   createPortfolioCard: {
     borderWidth: 2,
@@ -405,6 +438,94 @@ export const dashboardStyles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   userMenuActionButton: {
+    flex: 1,
+  },
+  preferencesSheetRoot: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    ...Platform.select({
+      web: {
+        position: "fixed",
+      },
+      default: {},
+    }),
+  },
+  preferencesSheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 15, 35, 0.52)",
+  },
+  preferencesSheetCard: {
+    width: "100%",
+    maxWidth: 960,
+    alignSelf: "center",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderColor: "#C7D5E8",
+    backgroundColor: "#FFFFFF",
+    minHeight: 340,
+    maxHeight: "84%",
+    ...Platform.select({
+      web: {
+        boxShadow: "0 -10px 30px rgba(14, 29, 49, 0.25)" as never,
+      },
+      default: {
+        elevation: 16,
+        shadowColor: "#000",
+        shadowOpacity: 0.24,
+        shadowRadius: 11,
+      },
+    }),
+  },
+  preferencesSheetContent: {
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
+    overflow: "visible",
+  },
+  preferencesSheetTitle: {
+    fontWeight: "800",
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+  },
+  preferencesSheetEmail: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+  },
+  preferencesRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: theme.spacing.sm,
+    zIndex: 5,
+  },
+  preferencesRowLabel: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    flex: 1,
+  },
+  preferencesSwitchRow: {
+    borderWidth: 1,
+    borderColor: "#D2DEEE",
+    borderRadius: 12,
+    backgroundColor: "#F6FAFF",
+    minHeight: 54,
+    paddingHorizontal: theme.spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  preferencesSwitchHint: {
+    color: "#34527A",
+    fontWeight: "700",
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
+  preferencesSheetActions: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+  },
+  preferencesSheetActionButton: {
     flex: 1,
   },
 });

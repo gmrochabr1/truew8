@@ -1,18 +1,17 @@
 import React, { memo } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 import { DSButton } from "@/src/components/common/DSButton";
 import { DSInput } from "@/src/components/common/DSInput";
 import { DSText } from "@/src/components/common/DSText";
+import { SlidingBottomSheet } from "@/src/components/common/SlidingBottomSheet";
 import { TranslationKey } from "@/src/i18n";
 
 import { dashboardStyles } from "./styles";
 
 type CreatePortfolioDrawerProps = {
-  isRendered: boolean;
+  visible: boolean;
   isCompactPortrait: boolean;
-  createBackdropOpacity: Animated.Value;
-  createDrawerTranslate: Animated.Value;
   createDrawerWidth: number;
   createDrawerHeight: number;
   createDrawerTopInset: number;
@@ -27,10 +26,8 @@ type CreatePortfolioDrawerProps = {
 };
 
 export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
-  isRendered,
+  visible,
   isCompactPortrait,
-  createBackdropOpacity,
-  createDrawerTranslate,
   createDrawerWidth,
   createDrawerHeight,
   createDrawerTopInset,
@@ -43,73 +40,55 @@ export const CreatePortfolioDrawer = memo(function CreatePortfolioDrawer({
   onCancel,
   onConfirm,
 }: CreatePortfolioDrawerProps) {
-  if (!isRendered) {
-    return null;
-  }
-
   return (
-    <View style={dashboardStyles.createDrawerRoot} pointerEvents="box-none">
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            opacity: createBackdropOpacity,
-            zIndex: 20,
-          },
-        ]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-      </Animated.View>
+    <SlidingBottomSheet
+      visible={visible}
+      onClose={onCancel}
+      testID="dashboard-create-portfolio-drawer"
+      sheetStyle={[
+        dashboardStyles.createDrawerShell,
+        dashboardStyles.createDrawerShellBottomSheet,
+        dashboardStyles.createDrawerShadowTop,
+        {
+          width: createDrawerWidth,
+          height: createDrawerHeight,
+          top: createDrawerTopInset,
+          left: createDrawerLeftInset,
+        },
+      ]}
+    >
+      <ScrollView style={dashboardStyles.createDrawerScroll} contentContainerStyle={dashboardStyles.createDrawerContent}>
+        <DSText style={dashboardStyles.createDrawerTitle}>{t("dashboard.createPortfolio.title")}</DSText>
+        <DSInput
+          label={t("dashboard.createPortfolio.name")}
+          value={newPortfolioName}
+          onChangeText={onChangeName}
+          placeholder={t("dashboard.createPortfolio.placeholder")}
+          maxLength={80}
+          testID="dashboard-create-portfolio-name"
+        />
 
-      <Animated.View
-        testID="dashboard-create-portfolio-drawer"
-        style={[
-          dashboardStyles.createDrawerShell,
-          dashboardStyles.createDrawerShellBottomSheet,
-          dashboardStyles.createDrawerShadowTop,
-          {
-            width: createDrawerWidth,
-            height: createDrawerHeight,
-            top: createDrawerTopInset,
-            left: createDrawerLeftInset,
-            transform: [{ translateY: createDrawerTranslate }] as any,
-          },
-        ]}
-      >
-        <ScrollView style={dashboardStyles.createDrawerScroll} contentContainerStyle={dashboardStyles.createDrawerContent}>
-          <DSText style={dashboardStyles.createDrawerTitle}>{t("dashboard.createPortfolio.title")}</DSText>
-          <DSInput
-            label={t("dashboard.createPortfolio.name")}
-            value={newPortfolioName}
-            onChangeText={onChangeName}
-            placeholder={t("dashboard.createPortfolio.placeholder")}
-            maxLength={80}
-            testID="dashboard-create-portfolio-name"
-          />
+        {createPortfolioError ? <DSText style={dashboardStyles.error}>{createPortfolioError}</DSText> : null}
 
-          {createPortfolioError ? <DSText style={dashboardStyles.error}>{createPortfolioError}</DSText> : null}
-
-          <View
-            style={[
-              dashboardStyles.createDrawerActions,
-              isCompactPortrait ? dashboardStyles.createDrawerActionsMobile : null,
-            ]}
-          >
-            <View style={dashboardStyles.createDrawerActionSlot}>
-              <DSButton title={t("common.cancel")} onPress={onCancel} />
-            </View>
-            <View style={dashboardStyles.createDrawerActionSlot}>
-              <DSButton
-                title={creatingPortfolio ? t("dashboard.createPortfolio.creating") : t("dashboard.createPortfolio.confirm")}
-                onPress={onConfirm}
-                testID="dashboard-create-portfolio-confirm"
-                disabled={creatingPortfolio}
-              />
-            </View>
+        <View
+          style={[
+            dashboardStyles.createDrawerActions,
+            isCompactPortrait ? dashboardStyles.createDrawerActionsMobile : null,
+          ]}
+        >
+          <View style={dashboardStyles.createDrawerActionSlot}>
+            <DSButton title={t("common.cancel")} onPress={onCancel} />
           </View>
-        </ScrollView>
-      </Animated.View>
-    </View>
+          <View style={dashboardStyles.createDrawerActionSlot}>
+            <DSButton
+              title={creatingPortfolio ? t("dashboard.createPortfolio.creating") : t("dashboard.createPortfolio.confirm")}
+              onPress={onConfirm}
+              testID="dashboard-create-portfolio-confirm"
+              disabled={creatingPortfolio}
+            />
+          </View>
+        </View>
+      </ScrollView>
+    </SlidingBottomSheet>
   );
 });

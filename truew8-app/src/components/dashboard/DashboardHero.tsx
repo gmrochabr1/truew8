@@ -15,6 +15,7 @@ type DashboardHeroProps = {
   totalInvested: number;
   isCompactPortrait: boolean;
   onLogout: () => void;
+  onOpenFaq: () => void;
 };
 
 export const DashboardHero = memo(function DashboardHero({
@@ -22,13 +23,12 @@ export const DashboardHero = memo(function DashboardHero({
   totalInvested,
   isCompactPortrait,
   onLogout,
+  onOpenFaq,
 }: DashboardHeroProps) {
   const { t, locale, setLocale, availableLocales, formatCurrency } =
     useLocale();
 
   const localeTriggerRef = useRef<View>(null);
-  const userTriggerRef = useRef<View>(null);
-
   const [isLocaleOpen, setIsLocaleOpen] = useState(false);
   const [localeAnchor, setLocaleAnchor] = useState<{
     top: number;
@@ -38,12 +38,6 @@ export const DashboardHero = memo(function DashboardHero({
   } | null>(null);
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [userAnchor, setUserAnchor] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
 
   const labels: Record<SupportedLocale, string> = {
     "pt-BR": t("locale.pt-BR"),
@@ -64,11 +58,8 @@ export const DashboardHero = memo(function DashboardHero({
   }, [isLocaleOpen]);
 
   const openUserMenu = useCallback(() => {
-    userTriggerRef.current?.measureInWindow((left, top, width, height) => {
-      setUserAnchor({ left, top, width, height });
-      setIsLocaleOpen(false);
-      setIsUserMenuOpen(true);
-    });
+    setIsLocaleOpen(false);
+    setIsUserMenuOpen(true);
   }, []);
 
   const handleLocaleSelect = useCallback(
@@ -126,25 +117,23 @@ export const DashboardHero = memo(function DashboardHero({
             ]}
           >
             <View style={[dashboardStyles.heroActionsRow]}>
-              <View ref={userTriggerRef} collapsable={false}>
-                <Pressable
-                  style={[
-                    dashboardStyles.heroActionButton,
-                    dashboardStyles.heroUserButton,
-                  ]}
-                  onPress={openUserMenu}
-                  testID="dashboard-user-menu-trigger"
-                >
-                  <Ionicons
-                    name="person-circle-outline"
-                    size={18}
-                    color="#EDF3FB"
-                  />
-                  <DSText style={dashboardStyles.heroActionLabel}>
-                    {t("dashboard.preferences.button")}
-                  </DSText>
-                </Pressable>
-              </View>
+              <Pressable
+                style={[
+                  dashboardStyles.heroActionButton,
+                  dashboardStyles.heroUserButton,
+                ]}
+                onPress={openUserMenu}
+                testID="dashboard-user-menu-trigger"
+              >
+                <Ionicons
+                  name="person-circle-outline"
+                  size={18}
+                  color="#EDF3FB"
+                />
+                <DSText style={dashboardStyles.heroActionLabel}>
+                  {t("dashboard.preferences.button")}
+                </DSText>
+              </Pressable>
 
               <View ref={localeTriggerRef} collapsable={false}>
                 <Pressable
@@ -168,6 +157,20 @@ export const DashboardHero = memo(function DashboardHero({
                   />
                 </Pressable>
               </View>
+
+              <Pressable
+                onPress={onOpenFaq}
+                style={[
+                  dashboardStyles.heroActionButton,
+                  dashboardStyles.heroFaqButton,
+                ]}
+                testID="dashboard-header-faq"
+              >
+                <Ionicons name="help-circle-outline" size={18} color="#EDF3FB" />
+                <DSText style={dashboardStyles.heroActionLabel}>
+                  {t("dashboard.preferences.faqCta")}
+                </DSText>
+              </Pressable>
 
               <Pressable
                 onPress={onLogout}
@@ -209,7 +212,6 @@ export const DashboardHero = memo(function DashboardHero({
 
         <UserCustomizationMenu
           visible={isUserMenuOpen}
-          anchorLayout={userAnchor}
           email={email}
           onClose={() => setIsUserMenuOpen(false)}
         />

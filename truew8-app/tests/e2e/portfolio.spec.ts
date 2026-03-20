@@ -45,17 +45,78 @@ test('opens user personalization menu and persists selected options', async ({ p
   await page.goto('/');
 
   await page.getByTestId('dashboard-user-menu-trigger').click();
-  await expect(page.getByTestId('dashboard-user-menu-popover')).toBeVisible();
+  await expect(page.getByTestId('dashboard-user-menu-bottom-sheet')).toBeVisible();
 
-  await expect(page.getByTestId('dashboard-pref-base-currency')).toBeVisible();
+  await page.getByTestId('dashboard-pref-bastter-helper').focus();
+  await page.getByTestId('dashboard-pref-bastter-helper').press('Enter');
+  await expect(page.getByTestId('dashboard-pref-bastter-helper-content')).toBeVisible();
+  await page.getByTestId('dashboard-pref-bastter-helper').press('Enter');
 
   await page.getByTestId('dashboard-pref-tolerance').fill('7.5');
-  await page.getByTestId('dashboard-pref-allow-sells').click();
-
-  await expect(page.getByTestId('dashboard-pref-theme')).toBeVisible();
+  await page.getByTestId('dashboard-pref-bastter-mode').focus();
+  await page.getByTestId('dashboard-pref-bastter-mode').press('Space');
 
   await page.getByTestId('dashboard-pref-save').click();
-  await expect(page.getByTestId('dashboard-user-menu-popover')).toHaveCount(0);
+  await expect(page.getByTestId('dashboard-user-menu-bottom-sheet')).toHaveCount(0);
+});
+
+test('locks and unlocks portfolio from dashboard card with confirmation modal', async ({ page }) => {
+  const email = 'ux.lock-portfolio-dashboard@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('VALE3');
+  await page.getByTestId('manual-quantity').fill('5');
+  await page.getByTestId('manual-average-price').fill('40');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+  await page.getByTestId('portfolio-close-drawer').click();
+
+  await page.getByTestId('portfolio-lock-toggle-portfolio-1').click();
+  await expect(page.getByTestId('portfolio-lock-modal')).toBeVisible();
+  await page.getByTestId('portfolio-lock-modal-confirm').click();
+  await expect(page.getByText('Carteira trancada: ativos congelados para rebalanceamento.')).toBeVisible();
+
+  await page.getByTestId('portfolio-lock-toggle-portfolio-1').click();
+  await page.getByTestId('portfolio-lock-modal-confirm').click();
+  await expect(page.getByText('Carteira trancada: ativos congelados para rebalanceamento.')).toHaveCount(0);
+});
+
+test('shows locked holdings in new deposit base list with closed lock icon', async ({ page }) => {
+  const email = 'ux.locked-in-rebalance@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('WEGE3');
+  await page.getByTestId('manual-quantity').fill('10');
+  await page.getByTestId('manual-average-price').fill('50');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('VALE3');
+  await page.getByTestId('manual-quantity').fill('5');
+  await page.getByTestId('manual-average-price').fill('60');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toBeVisible();
+  await page.getByTestId('holding-lock-modal-confirm').click();
+
+  await page.getByTestId('portfolio-rebalance-button').click();
+  await page.getByTestId('rebalance-deposit-input').fill('1000');
+  await page.getByTestId('rebalance-step-1-continue').click();
+
+  await expect(page.getByTestId('rebalance-locked-WEGE3')).toBeVisible();
+    await expect(page.getByText(/Ativo trancado/i)).toBeVisible();
 });
 
 test('moves logout to dashboard top bar and logs out', async ({ page }) => {
@@ -183,14 +244,40 @@ test('adds manual holding using drawer flow', async ({ page }) => {
 
   await page.getByTestId('manual-ticker').fill('WEGE3');
   await page.getByTestId('manual-quantity').fill('10abc,25');
-  await page.getByTestId('manual-average-price').fill('45,9xx');
+  await page.getByTestId('manual-average-price').fill('459');
   await expect(page.getByTestId('manual-quantity')).toHaveValue('10,25');
-  await expect(page.getByTestId('manual-average-price')).toHaveValue('45,9');
+  await expect(page.getByTestId('manual-average-price')).toHaveValue('4,59');
   await page.getByTestId('manual-brokerage').fill('XP');
   await page.getByTestId('manual-save-button').click();
 
   await expect(page.getByText('WEGE3')).toBeVisible();
   await expect(page.getByText('Corretora: XP')).toBeVisible();
+});
+
+test('blocks duplicate manual holdings within the same portfolio', async ({ page }) => {
+  const email = 'ux.manual-duplicate@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('WEGE3');
+  await page.getByTestId('manual-quantity').fill('10');
+  await page.getByTestId('manual-average-price').fill('50');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('WEGE3');
+  await page.getByTestId('manual-quantity').fill('2');
+  await page.getByTestId('manual-average-price').fill('45');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await expect(page.getByText('Este ativo já existe nesta carteira.')).toBeVisible();
+  await expect(page.getByText('WEGE3')).toHaveCount(1);
 });
 
 test('opens desktop drawers as centered bottom sheets with bounded width', async ({ page }) => {
@@ -298,7 +385,7 @@ test('opens drawers from bottom on compact portrait screens without covering ent
   await expect(page.getByTestId('rebalance-deposit-input')).toHaveValue('1000');
 });
 
-test('applies floating-point mask according to selected locale in value fields', async ({ page }) => {
+test('applies right-to-left numeric mask according to selected locale in average price field', async ({ page }) => {
   const email = 'ux.locale-mask@truew8.com';
   await seedApiRoutes(page);
   await authenticate(page, email);
@@ -311,8 +398,117 @@ test('applies floating-point mask according to selected locale in value fields',
   await page.getByTestId('portfolio-card-portfolio-1').click();
   await page.getByTestId('portfolio-add-manual-fab').click();
 
-  await page.getByTestId('manual-quantity').fill('10,25');
-  await page.getByTestId('manual-average-price').fill('45,9xx');
-  await expect(page.getByTestId('manual-quantity')).toHaveValue('10.25');
-  await expect(page.getByTestId('manual-average-price')).toHaveValue('45.9');
+  await page.getByTestId('manual-average-price').type('123456');
+  await expect(page.getByTestId('manual-average-price')).toHaveValue('1,234.56');
+});
+
+test('keeps average price mask localized in pt-BR', async ({ page }) => {
+  const email = 'ux.locale-mask-ptbr@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+
+  await page.getByTestId('manual-average-price').type('123456');
+  await expect(page.getByTestId('manual-average-price')).toHaveValue('1.234,56');
+});
+
+test('shows individual asset lock confirmation only on first time by default', async ({ page }) => {
+  const email = 'ux.holding-lock-first-time@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('PETR4');
+  await page.getByTestId('manual-quantity').fill('10');
+  await page.getByTestId('manual-average-price').fill('30');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toBeVisible();
+  await expect(page.getByText(/Esta confirmação será exibida somente na primeira vez/i)).toBeVisible();
+  await page.getByTestId('holding-lock-modal-confirm').click();
+  await expect(page.getByTestId('portfolio-holding-card-holding-1').getByText('Trancado')).toBeVisible();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toHaveCount(0);
+  await expect(page.getByText('Trancado')).toHaveCount(0);
+});
+
+test('keeps individual asset lock confirmation when enabled in preferences', async ({ page }) => {
+  const email = 'ux.holding-lock-always-confirm@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('dashboard-user-menu-trigger').click();
+  await page.getByTestId('dashboard-pref-lock-confirmation-mode').click();
+  await page.getByTestId('dashboard-pref-save').click();
+
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('VALE3');
+  await page.getByTestId('manual-quantity').fill('5');
+  await page.getByTestId('manual-average-price').fill('50');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toBeVisible();
+  await page.getByTestId('holding-lock-modal-confirm').click();
+
+  await page.getByTestId('holding-lock-toggle-holding-1').click();
+  await expect(page.getByTestId('holding-lock-modal')).toBeVisible();
+});
+
+test('hides portfolio lock icon on dashboard when portfolio has no assets', async ({ page }) => {
+  const email = 'ux.portfolio-lock-hidden-empty@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await expect(page.getByTestId('portfolio-lock-toggle-portfolio-1')).toHaveCount(0);
+});
+
+test('blocks new deposit when entire portfolio is locked and shows message', async ({ page }) => {
+  const email = 'ux.locked-portfolio-block-deposit@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('portfolio-card-portfolio-1').click();
+
+  await page.getByTestId('portfolio-add-manual-fab').click();
+  await page.getByTestId('manual-ticker').fill('ITUB4');
+  await page.getByTestId('manual-quantity').fill('12');
+  await page.getByTestId('manual-average-price').fill('20');
+  await page.getByTestId('manual-brokerage').fill('XP');
+  await page.getByTestId('manual-save-button').click();
+
+  await page.getByTestId('portfolio-toggle-lock-button').click();
+  await expect(page.getByTestId('portfolio-lock-modal')).toBeVisible();
+  await page.getByTestId('portfolio-lock-modal-confirm').click();
+
+  await page.getByTestId('portfolio-rebalance-button').click();
+  await expect(page.getByText('Não é possível fazer aporte enquanto a carteira inteira estiver trancada.')).toBeVisible();
+  await expect(page.getByTestId('rebalance-step-1-drawer')).toHaveCount(0);
+});
+
+test('opens FAQ from hero for lock guidance', async ({ page }) => {
+  const email = 'ux.faq-open@truew8.com';
+  await seedApiRoutes(page);
+  await authenticate(page, email);
+
+  await page.goto('/');
+  await page.getByTestId('dashboard-header-faq').click();
+
+  await expect(page.getByTestId('dashboard-faq-bottom-sheet')).toBeVisible();
+  await expect(page.getByText(/O que acontece ao trancar um ativo\?/i)).toBeVisible();
 });

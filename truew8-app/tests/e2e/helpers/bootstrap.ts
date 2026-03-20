@@ -117,6 +117,58 @@ export const seedApiRoutes = async (page: Page) => {
     await route.continue();
   });
 
+  await page.route('**/portfolio/holdings/*/lock', async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.continue();
+      return;
+    }
+
+    const requestUrl = route.request().url();
+    const holdingId = requestUrl.split('/portfolio/holdings/')[1]?.split('/lock')[0] ?? '';
+
+    let updatedHolding: {
+      id: string;
+      portfolioId: string;
+      ticker: string;
+      brokerage: string;
+      quantity: string;
+      averagePrice: string;
+      isLocked: boolean;
+    } | null = null;
+
+    holdingsByPortfolio.forEach((holdings, portfolioId) => {
+      const nextHoldings = holdings.map((holding) => {
+        if (holding.id !== holdingId) {
+          return holding;
+        }
+
+        const toggled = {
+          ...holding,
+          isLocked: !holding.isLocked,
+        };
+        updatedHolding = toggled;
+        return toggled;
+      });
+
+      holdingsByPortfolio.set(portfolioId, nextHoldings);
+    });
+
+    if (!updatedHolding) {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Holding not found' }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(updatedHolding),
+    });
+  });
+
   await page.route('**/portfolio/*/holdings', async (route) => {
     const method = route.request().method();
     const requestUrl = route.request().url();
@@ -135,22 +187,38 @@ export const seedApiRoutes = async (page: Page) => {
     if (method === 'POST') {
       const payload = route.request().postDataJSON() as {
         ticker?: string;
+        assetKey?: string;
         brokerage?: string;
         quantity?: string;
         averagePrice?: string;
       };
+      const assetKey = String(payload.assetKey ?? payload.ticker ?? '').trim().toUpperCase();
+      const current = holdingsByPortfolio.get(portfolioId) ?? [];
+
+      if (current.some((holding) => holding.ticker.trim().toUpperCase() === assetKey)) {
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'This asset already exists in this portfolio' }),
+        });
+        return;
+      }
       const createdHolding = {
         id: `holding-${(holdingsByPortfolio.get(portfolioId)?.length ?? 0) + 1}`,
         portfolioId,
         ticker: String(payload.ticker ?? ''),
+        assetKey,
         brokerage: String(payload.brokerage ?? ''),
         quantity: String(payload.quantity ?? ''),
         averagePrice: String(payload.averagePrice ?? ''),
         isLocked: false,
       };
-
-      const current = holdingsByPortfolio.get(portfolioId) ?? [];
-      holdingsByPortfolio.set(portfolioId, [...current, createdHolding]);
+      const next = [...current, createdHolding];
+      holdingsByPortfolio.set(portfolioId, next);
+      const portfolio = portfolios.find((item) => item.id === portfolioId);
+      if (portfolio) {
+        portfolio.holdingsCount = next.length;
+      }
 
       await route.fulfill({
         status: 200,

@@ -17,6 +17,7 @@ import com.truew8.service.MessageResolver;
 import jakarta.validation.Valid;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -181,9 +182,15 @@ public class PortfolioController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, messages.get("portfolio.not.found"));
         }
 
+        String normalizedAssetKey = request.assetKey().trim().toUpperCase(Locale.ROOT);
+        if (userHoldingRepository.existsByPortfolioIdAndAssetKey(portfolioId, normalizedAssetKey)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, messages.get("holding.duplicate"));
+        }
+
         UserHolding holding = new UserHolding();
         holding.setPortfolio(portfolio);
         holding.setTicker(request.ticker().trim());
+        holding.setAssetKey(normalizedAssetKey);
         holding.setBrokerage(request.brokerage().trim());
         holding.setMarket(request.market() != null ? request.market() : Market.B3);
         holding.setAssetType(request.assetType() != null ? request.assetType() : AssetType.STOCK);

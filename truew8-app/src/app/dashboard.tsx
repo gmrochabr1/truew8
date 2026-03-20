@@ -1,12 +1,12 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Animated, Easing, RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { RefreshControl, ScrollView, useWindowDimensions, View } from "react-native";
 
 import { AuthLoadingScreen } from "@/src/components/common/AuthLoadingScreen";
-import { CreatePortfolioDrawer, DashboardHero, PortfolioListPanel } from "@/src/components/dashboard";
+import { CreatePortfolioDrawer, DashboardHero, FaqBottomSheet, PortfolioListPanel } from "@/src/components/dashboard";
 import { dashboardStyles } from "@/src/components/dashboard/styles";
-import { PortfolioSummary, createPortfolio, getPortfolios } from "@/src/services/portfolio";
+import { PortfolioSummary, createPortfolio, getPortfolios, setPortfolioLock } from "@/src/services/portfolio";
 import { useAuth } from "@/src/store/AuthContext";
 import { useLocale } from "@/src/store/LocaleContext";
 import { theme } from "@/src/theme/tokens";
@@ -22,16 +22,13 @@ export default function DashboardScreen() {
   const [portfolios, setPortfolios] = useState<PortfolioSummary[]>([]);
   const [loadingPortfolios, setLoadingPortfolios] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lockingPortfolioId, setLockingPortfolioId] = useState<string | null>(null);
 
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
   const [isCreatePortfolioModalOpen, setIsCreatePortfolioModalOpen] = useState(false);
-  const [isCreatePortfolioDrawerRendered, setIsCreatePortfolioDrawerRendered] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState("");
   const [createPortfolioError, setCreatePortfolioError] = useState<string | null>(null);
-
-  const animationStart = useMemo(() => Math.max(screenHeight, 640), [screenHeight]);
-  const createDrawerTranslate = useRef(new Animated.Value(animationStart)).current;
-  const createBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const [isFaqOpen, setIsFaqOpen] = useState(false);
 
   const createDrawerWidth = useMemo(() => {
     const boundedWidth = Math.min(screenWidth, 1024);
@@ -107,56 +104,38 @@ export default function DashboardScreen() {
     setNewPortfolioName("");
   }, []);
 
-  React.useEffect(() => {
-    if (isCreatePortfolioModalOpen) {
-      setIsCreatePortfolioDrawerRendered(true);
-      createDrawerTranslate.setValue(animationStart);
-      createBackdropOpacity.setValue(0);
+  const onTogglePortfolioLock = useCallback(
+    async (portfolio: PortfolioSummary, lock: boolean) => {
+      try {
+        setLockingPortfolioId(portfolio.id);
+        const updatedHoldings = await setPortfolioLock(portfolio.id, lock);
+        const lockedHoldingsCount = updatedHoldings.filter((holding) => holding.isLocked).length;
+        const totalInvested = updatedHoldings.reduce(
+          (sum, holding) => sum + holding.quantity * holding.averagePrice,
+          0,
+        );
 
-      Animated.parallel([
-        Animated.timing(createDrawerTranslate, {
-          toValue: 0,
-          duration: 320,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(createBackdropOpacity, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-      return;
-    }
-
-    if (!isCreatePortfolioDrawerRendered) {
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(createDrawerTranslate, {
-        toValue: animationStart,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(createBackdropOpacity, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setIsCreatePortfolioDrawerRendered(false);
-    });
-  }, [
-    animationStart,
-    createBackdropOpacity,
-    createDrawerTranslate,
-    isCreatePortfolioDrawerRendered,
-    isCreatePortfolioModalOpen,
-  ]);
+        setPortfolios((previous) =>
+          previous.map((item) =>
+            item.id === portfolio.id
+              ? {
+                  ...item,
+                  holdingsCount: updatedHoldings.length,
+                  totalInvested,
+                  lockedHoldingsCount,
+                  isLocked: updatedHoldings.length > 0 && lockedHoldingsCount === updatedHoldings.length,
+                }
+              : item,
+          ),
+        );
+      } catch {
+        setError(t("portfolio.lockActionError"));
+      } finally {
+        setLockingPortfolioId(null);
+      }
+    },
+    [t],
+  );
 
   const loadPortfolios = useCallback(async () => {
     try {
@@ -212,6 +191,7 @@ export default function DashboardScreen() {
             totalInvested={totalInvested}
             isCompactPortrait={isCompactPortrait}
             onLogout={() => void onLogoutPress()}
+            onOpenFaq={() => setIsFaqOpen(true)}
           />
 
           <PortfolioListPanel
@@ -224,15 +204,15 @@ export default function DashboardScreen() {
             onRefresh={() => void loadPortfolios()}
             onCreatePortfolio={onOpenCreatePortfolio}
             onOpenPortfolio={onOpenPortfolio}
+            onTogglePortfolioLock={onTogglePortfolioLock}
+            lockingPortfolioId={lockingPortfolioId}
           />
         </View>
       </ScrollView>
 
       <CreatePortfolioDrawer
-        isRendered={isCreatePortfolioDrawerRendered}
+        visible={isCreatePortfolioModalOpen}
         isCompactPortrait={isCompactPortrait}
-        createBackdropOpacity={createBackdropOpacity}
-        createDrawerTranslate={createDrawerTranslate}
         createDrawerWidth={createDrawerWidth}
         createDrawerHeight={createDrawerHeight}
         createDrawerTopInset={createDrawerTopInset}
@@ -245,6 +225,8 @@ export default function DashboardScreen() {
         onCancel={onCancelCreatePortfolio}
         onConfirm={() => void onConfirmCreatePortfolio()}
       />
+
+      <FaqBottomSheet visible={isFaqOpen} onClose={() => setIsFaqOpen(false)} />
     </View>
   );
 }

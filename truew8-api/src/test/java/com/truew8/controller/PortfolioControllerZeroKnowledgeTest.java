@@ -2,6 +2,8 @@ package com.truew8.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -33,6 +35,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
@@ -76,11 +79,14 @@ class PortfolioControllerZeroKnowledgeTest {
         authentication = new UsernamePasswordAuthenticationToken(user.getEmail(), "n/a");
 
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        lenient().when(messages.get("holding.duplicate")).thenReturn("This asset already exists in this portfolio");
     }
 
     @Test
     void shouldPersistCiphertextHoldingFieldsWithoutServerComputation() {
         when(portfolioRepository.findById(portfolio.getId())).thenReturn(Optional.of(portfolio));
+        when(userHoldingRepository.existsByPortfolioIdAndAssetKey(portfolio.getId(), "PETR4"))
+                .thenReturn(false);
         when(userHoldingRepository.save(any(UserHolding.class))).thenAnswer(invocation -> {
             UserHolding saved = invocation.getArgument(0);
             saved.setId(UUID.randomUUID());
@@ -89,6 +95,7 @@ class PortfolioControllerZeroKnowledgeTest {
 
         CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
                 "v1:iv:tickerCipher",
+                "PETR4",
                 "v1:iv:brokerageCipher",
                 "v1:iv:quantityCipher",
                 "v1:iv:averagePriceCipher",
@@ -109,6 +116,31 @@ class PortfolioControllerZeroKnowledgeTest {
         assertEquals("v1:iv:quantityCipher", body.quantity());
         assertEquals("v1:iv:averagePriceCipher", body.averagePrice());
     }
+
+        @Test
+        void shouldRejectDuplicateAssetInSamePortfolio() {
+        when(portfolioRepository.findById(portfolio.getId())).thenReturn(Optional.of(portfolio));
+        when(userHoldingRepository.existsByPortfolioIdAndAssetKey(portfolio.getId(), "PETR4"))
+            .thenReturn(true);
+
+        CreateHoldingRequestDTO request = new CreateHoldingRequestDTO(
+            "v1:iv:tickerCipher",
+            "PETR4",
+            "v1:iv:brokerageCipher",
+            "v1:iv:quantityCipher",
+            "v1:iv:averagePriceCipher",
+            Market.B3,
+            AssetType.STOCK
+        );
+
+        ResponseStatusException exception = assertThrows(
+            ResponseStatusException.class,
+            () -> portfolioController.addHoldingToPortfolio(portfolio.getId(), request, authentication)
+        );
+
+        assertEquals(409, exception.getStatusCode().value());
+        assertEquals("This asset already exists in this portfolio", exception.getReason());
+        }
 
     @Test
     void shouldReturnZeroTotalInvestedInPortfolioSummaryUnderZeroKnowledge() {

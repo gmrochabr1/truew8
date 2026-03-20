@@ -20,6 +20,7 @@ type DSInputProps = {
   valueLocale?: string;
   valueMaxFractionDigits?: number;
   valueAllowDecimal?: boolean;
+  valueMaskMode?: 'decimal' | 'rightToLeft';
 };
 
 export function DSInput({
@@ -37,6 +38,7 @@ export function DSInput({
   valueLocale,
   valueMaxFractionDigits = 2,
   valueAllowDecimal = true,
+  valueMaskMode = 'decimal',
 }: DSInputProps) {
   const { locale } = useLocale();
   const numberLocale = valueLocale ?? (locale === 'en-US' ? 'en-US' : 'pt-BR');
@@ -52,10 +54,11 @@ export function DSInput({
         locale: numberLocale,
         allowDecimal: valueAllowDecimal,
         maxFractionDigits: valueMaxFractionDigits,
+        mode: valueMaskMode,
       });
       onChangeText(maskedValue);
     },
-    [isValueField, numberLocale, onChangeText, valueAllowDecimal, valueMaxFractionDigits],
+    [isValueField, numberLocale, onChangeText, valueAllowDecimal, valueMaxFractionDigits, valueMaskMode],
   );
 
   return (
@@ -65,7 +68,7 @@ export function DSInput({
         <TextInput
           testID={testID}
           accessibilityLabel={testID}
-          style={styles.input}
+          style={[styles.input, isValueField && valueMaskMode === 'rightToLeft' ? styles.inputRightAligned : null]}
           value={value}
           onChangeText={handleChangeText}
           placeholder={placeholder}
@@ -115,6 +118,9 @@ const styles = StyleSheet.create({
       } as never,
       default: {},
     }),
+  },
+  inputRightAligned: {
+    textAlign: 'right',
   },
   rightElement: {
     alignItems: 'center',

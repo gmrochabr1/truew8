@@ -11,6 +11,7 @@ type HoldingCipherDTO = {
   id: string;
   portfolioId?: string | null;
   ticker: string;
+  assetKey?: string | null;
   brokerage: string;
   market?: string;
   assetType?: string;
@@ -23,6 +24,7 @@ export type UserHolding = {
   id: string;
   portfolioId?: string | null;
   ticker: string;
+  assetKey?: string;
   brokerage: string;
   market?: string;
   assetType?: string;
@@ -37,6 +39,8 @@ export type PortfolioSummary = {
   description?: string | null;
   holdingsCount: number;
   totalInvested: number;
+  lockedHoldingsCount?: number;
+  isLocked?: boolean;
 };
 
 export type AddHoldingInput = {
@@ -113,6 +117,7 @@ async function normalizeHolding(payload: HoldingCipherDTO): Promise<UserHolding>
     id: String(payload.id),
     portfolioId: payload.portfolioId ? String(payload.portfolioId) : null,
     ticker: String(ticker ?? ''),
+    assetKey: payload.assetKey ? String(payload.assetKey) : undefined,
     brokerage: String(brokerage ?? 'Sem corretora'),
     market: payload.market ? String(payload.market) : undefined,
     assetType: payload.assetType ? String(payload.assetType) : undefined,
@@ -130,6 +135,8 @@ export async function getPortfolios(): Promise<PortfolioSummary[]> {
     description: item.description ?? null,
     holdingsCount: toNumber(item.holdingsCount),
     totalInvested: toNumber(item.totalInvested),
+    lockedHoldingsCount: 0,
+    isLocked: false,
   }));
 
   const enriched = await Promise.all(
@@ -137,10 +144,14 @@ export async function getPortfolios(): Promise<PortfolioSummary[]> {
       try {
         const holdings = await getPortfolioHoldings(portfolio.id);
         const totalInvested = holdings.reduce((sum, holding) => sum + holding.quantity * holding.averagePrice, 0);
+        const lockedHoldingsCount = holdings.filter((holding) => holding.isLocked).length;
+        const isLocked = holdings.length > 0 && lockedHoldingsCount === holdings.length;
         return {
           ...portfolio,
           holdingsCount: holdings.length,
           totalInvested,
+          lockedHoldingsCount,
+          isLocked,
         };
       } catch {
         // Keep API fallback values if holdings fetch/decrypt fails for this portfolio.
@@ -196,6 +207,7 @@ export async function addHoldingManual(portfolioId: string, input: AddHoldingInp
 
   const payload: Omit<HoldingCipherDTO, 'id' | 'portfolioId' | 'isLocked'> & { market?: AddHoldingInput['market']; assetType?: AddHoldingInput['assetType'] } = {
     ticker: tickerCipher,
+    assetKey: normalizedTicker,
     brokerage: brokerageCipher,
     quantity: quantityCipher,
     averagePrice: averagePriceCipher,
@@ -205,4 +217,23 @@ export async function addHoldingManual(portfolioId: string, input: AddHoldingInp
 
   const { data } = await apiClient.post<HoldingCipherDTO>(`/portfolio/${portfolioId}/holdings`, payload);
   return normalizeHolding(data);
+}
+
+export async function toggleHoldingLock(holdingId: string): Promise<UserHolding> {
+  const { data } = await apiClient.patch<HoldingCipherDTO>(`/portfolio/holdings/${holdingId}/lock`);
+  return normalizeHolding(data);
+}
+
+export async function setPortfolioLock(portfolioId: string, locked: boolean): Promise<UserHolding[]> {
+  const currentHoldings = await getPortfolioHoldings(portfolioId);
+  const holdingsToToggle = currentHoldings.filter((holding) => holding.isLocked !== locked);
+
+  if (holdingsToToggle.length === 0) {
+    return currentHoldings;
+  }
+
+  const updatedHoldings = await Promise.all(holdingsToToggle.map((holding) => toggleHoldingLock(holding.id)));
+  const updatesById = new Map(updatedHoldings.map((holding) => [holding.id, holding]));
+
+  return currentHoldings.map((holding) => updatesById.get(holding.id) ?? holding);
 }

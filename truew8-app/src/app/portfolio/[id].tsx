@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Animated, Easing, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { AuthLoadingScreen } from '@/src/components/common/AuthLoadingScreen';
 import { ConfirmActionModal } from '@/src/components/common/ConfirmActionModal';
@@ -9,8 +10,22 @@ import { DSButton } from '@/src/components/common/DSButton';
 import { DSInput } from '@/src/components/common/DSInput';
 import { DSText } from '@/src/components/common/DSText';
 import { CascadingRebalanceFlow } from '@/src/components/rebalance/CascadingRebalanceFlow';
-import { maskNumericInput, parseLocaleNumber } from '@/src/services/numericInput';
-import { addHoldingManual, deletePortfolio, getPortfolioHoldings, getPortfolios, updatePortfolio, UserHolding } from '@/src/services/portfolio';
+import { parseLocaleNumber } from '@/src/services/numericInput';
+import {
+  AssetLockConfirmationPreference,
+  getAssetLockConfirmationPreference,
+  updateAssetLockConfirmationPreference,
+} from '@/src/services/preferences';
+import {
+  addHoldingManual,
+  deletePortfolio,
+  getPortfolioHoldings,
+  getPortfolios,
+  setPortfolioLock,
+  toggleHoldingLock,
+  updatePortfolio,
+  UserHolding,
+} from '@/src/services/portfolio';
 import { useAuth } from '@/src/store/AuthContext';
 import { useLocale } from '@/src/store/LocaleContext';
 import { theme } from '@/src/theme/tokens';
@@ -19,7 +34,7 @@ export default function PortfolioDetailScreen() {
   const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const portfolioId = String(id ?? '');
-  const { isAuthenticated, isLoading } = useAuth();
+  const { email, isAuthenticated, isLoading } = useAuth();
   const { t, locale, formatCurrency } = useLocale();
   const isCompactPortrait = screenWidth < 640 && screenHeight >= screenWidth;
   const numberLocale = locale === 'en-US' ? 'en-US' : 'pt-BR';
@@ -47,6 +62,15 @@ export default function PortfolioDetailScreen() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [isSavingManualHolding, setIsSavingManualHolding] = useState(false);
+  const [activeLockHolding, setActiveLockHolding] = useState<UserHolding | null>(null);
+  const [isHoldingLockModalOpen, setIsHoldingLockModalOpen] = useState(false);
+  const [isPortfolioLockModalOpen, setIsPortfolioLockModalOpen] = useState(false);
+  const [isUpdatingHoldingLock, setIsUpdatingHoldingLock] = useState(false);
+  const [isUpdatingPortfolioLock, setIsUpdatingPortfolioLock] = useState(false);
+  const [assetLockPreference, setAssetLockPreference] = useState<AssetLockConfirmationPreference>({
+    keepConfirmationForIndividualAssets: false,
+    hasConfirmedIndividualAssetLock: false,
+  });
 
   const drawerWidth = useMemo(() => {
     if (isCompactPortrait) {
@@ -108,6 +132,31 @@ export default function PortfolioDetailScreen() {
   const editNameBackdropOpacity = useMemo(() => new Animated.Value(0), []);
 
   const getDrawerTransform = useCallback((value: Animated.Value) => [{ translateY: value }], []);
+
+  React.useEffect(() => {
+    let mounted = true;
+
+    void getAssetLockConfirmationPreference(email)
+      .then((preference) => {
+        if (!mounted) {
+          return;
+        }
+        setAssetLockPreference(preference);
+      })
+      .catch(() => {
+        if (!mounted) {
+          return;
+        }
+        setAssetLockPreference({
+          keepConfirmationForIndividualAssets: false,
+          hasConfirmedIndividualAssetLock: false,
+        });
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [email]);
 
   React.useEffect(() => {
     const normalizedName = String(name ?? '').trim();
@@ -270,6 +319,10 @@ export default function PortfolioDetailScreen() {
     return holdings.reduce((sum, holding) => sum + holding.quantity * holding.averagePrice, 0);
   }, [holdings]);
 
+  const isPortfolioLocked = useMemo(() => {
+    return holdings.length > 0 && holdings.every((holding) => holding.isLocked);
+  }, [holdings]);
+
   if (isLoading) {
     return <AuthLoadingScreen message={t('app.validatingSession')} />;
   }
@@ -363,20 +416,111 @@ export default function PortfolioDetailScreen() {
     }
   };
 
+  const toggleHoldingWithOptionalPreferenceUpdate = async (
+    holding: UserHolding,
+    shouldMarkAsConfirmed: boolean,
+  ) => {
+    try {
+      setIsUpdatingHoldingLock(true);
+      const updated = await toggleHoldingLock(holding.id);
+      setHoldings((previous) =>
+        previous.map((item) => (item.id === updated.id ? updated : item)),
+      );
+
+      if (shouldMarkAsConfirmed) {
+        const nextPreference = await updateAssetLockConfirmationPreference(email, {
+          hasConfirmedIndividualAssetLock: true,
+        });
+        setAssetLockPreference(nextPreference);
+      }
+    } catch {
+      setError(t('portfolio.lockActionError'));
+    } finally {
+      setIsUpdatingHoldingLock(false);
+    }
+  };
+
+  const onHoldingLockPress = async (holding: UserHolding) => {
+    if (isUpdatingHoldingLock) {
+      return;
+    }
+
+    setError(null);
+
+    if (
+      assetLockPreference.keepConfirmationForIndividualAssets ||
+      !assetLockPreference.hasConfirmedIndividualAssetLock
+    ) {
+      setActiveLockHolding(holding);
+      setIsHoldingLockModalOpen(true);
+      return;
+    }
+
+    await toggleHoldingWithOptionalPreferenceUpdate(holding, false);
+  };
+
+  const closeHoldingLockModal = () => {
+    if (isUpdatingHoldingLock) {
+      return;
+    }
+    setIsHoldingLockModalOpen(false);
+    setActiveLockHolding(null);
+  };
+
+  const openPortfolioLockModal = () => {
+    setIsPortfolioLockModalOpen(true);
+  };
+
+  const closePortfolioLockModal = () => {
+    if (isUpdatingPortfolioLock) {
+      return;
+    }
+    setIsPortfolioLockModalOpen(false);
+  };
+
+  const onConfirmHoldingLock = async () => {
+    if (!activeLockHolding) {
+      return;
+    }
+
+    await toggleHoldingWithOptionalPreferenceUpdate(activeLockHolding, true);
+    setIsHoldingLockModalOpen(false);
+    setActiveLockHolding(null);
+  };
+
+  const onConfirmPortfolioLock = async () => {
+    try {
+      setIsUpdatingPortfolioLock(true);
+      const updatedHoldings = await setPortfolioLock(portfolioId, !isPortfolioLocked);
+      setHoldings(updatedHoldings);
+      setIsPortfolioLockModalOpen(false);
+    } catch {
+      setError(t('portfolio.lockActionError'));
+    } finally {
+      setIsUpdatingPortfolioLock(false);
+    }
+  };
+
   const onSaveManualHolding = async () => {
     setFormError(null);
     const parsedQuantity = parseLocaleNumber(quantity, numberLocale);
     const parsedAveragePrice = parseLocaleNumber(averagePrice, numberLocale);
+    const normalizedTicker = ticker.trim().toUpperCase();
 
-    if (!ticker.trim() || !brokerage.trim() || parsedQuantity <= 0 || parsedAveragePrice <= 0) {
+    if (!normalizedTicker || !brokerage.trim() || parsedQuantity <= 0 || parsedAveragePrice <= 0) {
       setFormError(t('portfolio.formError'));
+      return;
+    }
+
+    if (holdings.some((holding) => holding.ticker.trim().toUpperCase() === normalizedTicker)) {
+      setFormError(t('portfolio.duplicateError'));
       return;
     }
 
     try {
       setIsSavingManualHolding(true);
       const created = await addHoldingManual(portfolioId, {
-        ticker,
+        ticker: normalizedTicker,
         brokerage,
         quantity: parsedQuantity,
         averagePrice: parsedAveragePrice,
@@ -395,9 +539,14 @@ export default function PortfolioDetailScreen() {
     }
   };
 
-  const onAveragePriceChange = useCallback((value: string) => {
-    setAveragePrice(maskNumericInput(value, { locale: numberLocale, maxFractionDigits: 2 }));
-  }, [numberLocale]);
+  const openRebalanceDrawer = () => {
+    setError(null);
+    if (isPortfolioLocked) {
+      setError(t('portfolio.rebalanceLockedError'));
+      return;
+    }
+    setIsRebalanceOpen(true);
+  };
 
   const onSavePortfolioName = async () => {
     const normalizedName = editedPortfolioName.trim();
@@ -450,6 +599,27 @@ export default function PortfolioDetailScreen() {
                   <DSText style={styles.headerSubtitle}>{t('portfolio.subtitle', { count: holdings.length, total: formatCurrency(totalInvested) })}</DSText>
                 </View>
                 <View style={styles.headerActionsColumn}>
+                  <Pressable
+                    onPress={openPortfolioLockModal}
+                    style={[
+                      styles.secondaryDrawerButton,
+                      isPortfolioLocked ? styles.lockedActionButton : null,
+                      holdings.length === 0 ? styles.secondaryDrawerButtonDisabled : null,
+                    ]}
+                    testID="portfolio-toggle-lock-button"
+                    disabled={holdings.length === 0 || isUpdatingPortfolioLock}
+                  >
+                    <View style={styles.lockButtonLabelRow}>
+                      <Ionicons
+                        name={isPortfolioLocked ? 'lock-closed' : 'lock-open-outline'}
+                        size={14}
+                        color="#E8F2FF"
+                      />
+                      <DSText style={styles.secondaryDrawerButtonText}>
+                        {isPortfolioLocked ? t('portfolio.unlockWhole') : t('portfolio.lockWhole')}
+                      </DSText>
+                    </View>
+                  </Pressable>
                   <Pressable onPress={openEditNameDrawer} style={styles.secondaryDrawerButton} testID="portfolio-edit-name-button">
                     <DSText style={styles.secondaryDrawerButtonText}>{t('portfolio.editName')}</DSText>
                   </Pressable>
@@ -468,17 +638,39 @@ export default function PortfolioDetailScreen() {
               <View style={styles.rebalanceCta}>
                 <DSButton
                   title={t('portfolio.rebalanceCta')}
-                  onPress={() => setIsRebalanceOpen(true)}
+                  onPress={openRebalanceDrawer}
                   testID="portfolio-rebalance-button"
                   disabled={loadingHoldings || holdings.length === 0}
                 />
               </View>
 
               {holdings.map((holding) => (
-                <View key={holding.id} style={styles.holdingCard}>
+                <View
+                  key={holding.id}
+                  style={[styles.holdingCard, holding.isLocked ? styles.holdingCardLocked : null]}
+                  testID={`portfolio-holding-card-${holding.id}`}
+                >
                   <View style={styles.holdingHeader}>
-                    <DSText style={styles.holdingTicker}>{holding.ticker}</DSText>
-                    <DSText style={styles.holdingBrokerage}>{holding.brokerage}</DSText>
+                    <View style={styles.holdingHeaderTickerWrap}>
+                      <DSText style={styles.holdingTicker}>{holding.ticker}</DSText>
+                      {holding.isLocked ? <DSText style={styles.holdingLockedLabel}>{t('portfolio.lockedLabel')}</DSText> : null}
+                    </View>
+                    <View style={styles.holdingHeaderActions}>
+                      <DSText style={styles.holdingBrokerage}>{holding.brokerage}</DSText>
+                      <Pressable
+                        onPress={() => {
+                          void onHoldingLockPress(holding);
+                        }}
+                        style={({ pressed }) => [styles.holdingLockButton, pressed ? styles.holdingLockButtonPressed : null]}
+                        testID={`holding-lock-toggle-${holding.id}`}
+                      >
+                        <Ionicons
+                          name={holding.isLocked ? 'lock-closed' : 'lock-open-outline'}
+                          size={14}
+                          color={holding.isLocked ? '#4A6286' : '#5B7496'}
+                        />
+                      </Pressable>
+                    </View>
                   </View>
                   <DSText style={styles.holdingMeta}>{t('portfolio.quantity', { value: holding.quantity })}</DSText>
                   <DSText style={styles.holdingMeta}>{t('portfolio.averagePrice', { value: formatCurrency(holding.averagePrice) })}</DSText>
@@ -552,9 +744,13 @@ export default function PortfolioDetailScreen() {
                   <DSInput
                     label={t('portfolio.averagePriceInput')}
                     value={averagePrice}
-                    onChangeText={onAveragePriceChange}
+                    onChangeText={setAveragePrice}
                     keyboardType="decimal-pad"
                     maxLength={16}
+                    isValueField
+                    valueLocale={numberLocale}
+                    valueMaxFractionDigits={2}
+                    valueMaskMode="rightToLeft"
                     placeholder={averagePricePlaceholder}
                     testID="manual-average-price"
                   />
@@ -653,6 +849,34 @@ export default function PortfolioDetailScreen() {
             onCancel={closeDeletePortfolioModal}
             isBusy={isDeletingPortfolio}
             testID="portfolio-delete-modal"
+          />
+
+          <ConfirmActionModal
+            visible={isHoldingLockModalOpen}
+            title={activeLockHolding?.isLocked ? t('portfolio.unlockModalTitle') : t('portfolio.lockModalTitle')}
+            message={
+              activeLockHolding?.isLocked
+                ? t('portfolio.unlockHoldingMessage')
+                : `${t('portfolio.lockHoldingMessage')}\n\n${t('portfolio.lockHoldingFirstTimeInfo')}`
+            }
+            confirmLabel={activeLockHolding?.isLocked ? t('portfolio.unlockHoldingConfirm') : t('portfolio.lockHoldingConfirm')}
+            busyConfirmLabel={t('common.saving')}
+            onConfirm={() => void onConfirmHoldingLock()}
+            onCancel={closeHoldingLockModal}
+            isBusy={isUpdatingHoldingLock}
+            testID="holding-lock-modal"
+          />
+
+          <ConfirmActionModal
+            visible={isPortfolioLockModalOpen}
+            title={isPortfolioLocked ? t('portfolio.unlockModalTitle') : t('portfolio.lockModalTitle')}
+            message={isPortfolioLocked ? t('portfolio.unlockPortfolioMessage') : t('portfolio.lockPortfolioMessage')}
+            confirmLabel={isPortfolioLocked ? t('portfolio.unlockPortfolioConfirm') : t('portfolio.lockPortfolioConfirm')}
+            busyConfirmLabel={t('common.saving')}
+            onConfirm={() => void onConfirmPortfolioLock()}
+            onCancel={closePortfolioLockModal}
+            isBusy={isUpdatingPortfolioLock}
+            testID="portfolio-lock-modal"
           />
         </View>
       </Animated.View>
@@ -754,9 +978,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  secondaryDrawerButtonDisabled: {
+    opacity: 0.45,
+  },
   secondaryDrawerButtonText: {
     color: '#E8F2FF',
     fontWeight: '700',
+  },
+  lockButtonLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  lockedActionButton: {
+    borderColor: '#5E80B2',
+    backgroundColor: '#214A81',
   },
   deleteDrawerButton: {
     borderRadius: 12,
@@ -788,20 +1024,54 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     gap: 4,
   },
+  holdingCardLocked: {
+    backgroundColor: '#EEF3FA',
+    borderColor: '#A8BBD6',
+    opacity: 0.6,
+  },
   holdingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
   },
+  holdingHeaderTickerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  holdingHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   holdingTicker: {
     fontWeight: '800',
     fontSize: 18,
     color: theme.colors.textPrimary,
   },
+  holdingLockedLabel: {
+    color: '#6A7F9B',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   holdingBrokerage: {
     color: theme.colors.gold,
     fontWeight: '800',
+  },
+  holdingLockButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#BDCCE1',
+    backgroundColor: '#F2F7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  holdingLockButtonPressed: {
+    opacity: 0.75,
   },
   holdingMeta: {
     color: theme.colors.textMuted,

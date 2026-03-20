@@ -13,6 +13,8 @@ public interface UserHoldingRepository extends JpaRepository<UserHolding, UUID> 
 
     List<UserHolding> findByPortfolioId(UUID portfolioId);
 
+    boolean existsByPortfolioIdAndAssetKey(UUID portfolioId, String assetKey);
+
     List<UserHolding> findByPortfolioUserId(UUID userId);
 
     Optional<UserHolding> findByIdAndPortfolioUserId(UUID id, UUID userId);

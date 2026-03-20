@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record CreateHoldingRequestDTO(
         @NotBlank String ticker,
+        @NotBlank String assetKey,
         @NotBlank String brokerage,
         @NotBlank String quantity,
         @NotBlank String averagePrice,
